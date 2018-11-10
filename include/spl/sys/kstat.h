@@ -24,11 +24,15 @@
 
 #ifndef _SPL_KSTAT_H
 #define	_SPL_KSTAT_H
-
+#ifdef __linux__
 #include <linux/module.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/kmem.h>
+#else
+#include <sys/sysctl.h>
+struct list_head {};
+#endif
 #include <sys/mutex.h>
 #include <sys/proc.h>
 
@@ -122,6 +126,11 @@ struct kstat_s {
 	kstat_raw_ops_t	ks_raw_ops;		/* ops table for raw type */
 	char		*ks_raw_buf;		/* buf used for raw ops */
 	size_t		ks_raw_bufsize;		/* size of raw ops buffer */
+#if defined(_KERNEL) && defined(__FreeBSD__)
+        struct sysctl_ctx_list ks_sysctl_ctx;
+        struct sysctl_oid *ks_sysctl_root;
+#endif
+
 };
 
 typedef struct kstat_named_s {
