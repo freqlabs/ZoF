@@ -141,7 +141,7 @@ all: zfs_common.ko
 #CFLAGS+= -D__x86_64 -DHAVE_AVX2
 #CFLAGS+= -D_SYS_UIO_H_
 
-include $(ZFSBASE)/Makefile.bsd.inc
+include $(ZFSBASE)/module/Makefile.bsd.inc
 
 zfs_common.ko:  $(objs)
 	ld -r -d -o $@ $(objs)
