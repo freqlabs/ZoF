@@ -27,6 +27,7 @@
  */
 /* Copyright 2006 Ricardo Correia */
 
+#if 0
 #ifndef _SYS_MNTTAB_H
 #define	_SYS_MNTTAB_H
 
@@ -83,4 +84,5 @@ static inline char *_sol_hasmntopt(struct mnttab *mnt, char *opt)
 #define	hasmntopt	_sol_hasmntopt
 #define	getmntent	_sol_getmntent
 
+#endif
 #endif

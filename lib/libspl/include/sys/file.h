@@ -30,9 +30,10 @@
 #include_next <sys/file.h>
 
 #include <sys/user.h>
-
+#ifdef __linux__
 #define	FREAD	1
 #define	FWRITE	2
+#endif
 // #define	FAPPEND  8
 
 #define	FCREAT	O_CREAT

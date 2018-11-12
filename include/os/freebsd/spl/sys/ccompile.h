@@ -27,8 +27,6 @@
 #ifndef	_SYS_CCOMPILE_H
 #define	_SYS_CCOMPILE_H
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 /*
  * This file contains definitions designed to enable different compilers
  * to be used harmoniously on Solaris systems.
@@ -115,20 +113,35 @@ extern "C" {
 #define	__VPRINTFLIKE(__n)	__sun_attr__((__VPRINTFLIKE__(__n)))
 #define	__KPRINTFLIKE(__n)	__sun_attr__((__KPRINTFLIKE__(__n)))
 #define	__KVPRINTFLIKE(__n)	__sun_attr__((__KVPRINTFLIKE__(__n)))
+#ifdef __KERNEL
 #define	__NORETURN		__sun_attr__((__noreturn__))
+#endif
 #define	__CONST			__sun_attr__((__const__))
 #define	__PURE			__sun_attr__((__pure__))
+
+#define EXPORT_SYMBOL(x)
+#define module_param(a, b, c)
+#define module_param_named(a, b, c, d)
+#define MODULE_PARM_DESC(a, b)
+#ifdef __KERNEL
+#include <linux/types.h>
 
 #define vmem_free zfs_kmem_free
 /* XXX */
 #define vmem_zalloc zfs_kmem_alloc
 #define vmem_alloc zfs_kmem_alloc
-#define EXPORT_SYMBOL(x)
-#define module_param(a, b, c)
-#define module_param_named(a, b, c, d)
-#define MODULE_PARM_DESC(a, b)
-#include <linux/types.h>
-	
+#else
+typedef unsigned int uint_t;
+typedef long loff_t;
+	typedef long rlim64_t;	
+#define __XSI_VISIBLE 1000
+#define __BSD_VISIBLE 1
+#define __POSIX_VISIBLE 201808
+#define        ARRAY_SIZE(a) (sizeof (a) / sizeof (a[0]))
+#define fstat64 fstat
+#define stat64 stat
+#define    DIV_ROUND_UP(n, d)      (((n) + (d) - 1) / (d))
+#endif
 #ifdef	__cplusplus
 }
 #endif

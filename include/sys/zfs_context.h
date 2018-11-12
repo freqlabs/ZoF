@@ -143,7 +143,9 @@ extern int spa_import_rootpool(const char *name);
 #include <pthread.h>
 #include <setjmp.h>
 #include <assert.h>
+#ifdef __linux__
 #include <alloca.h>
+#endif
 #include <umem.h>
 #include <limits.h>
 #include <atomic.h>

@@ -36,8 +36,9 @@
 
 #include <sys/time.h>
 #include <sys/zio_priority.h>
+#if defined(__FreeBSD__) && defined(__KERNEL)
 #include_next <sys/fs/zfs.h>
-
+#endif
 #ifdef	__cplusplus
 extern "C" {
 #endif

@@ -21,8 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2013, 2018 by Delphix. All rights reserved.
- * Copyright (c) 2016, 2017 Intel Corporation.
+ * Copyright (c) 2013, 2015 by Delphix. All rights reserved.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>.
  */
 
@@ -53,7 +52,7 @@
  *
  * 	1. Construct the vdev specification.  Performs syntax validation and
  *         makes sure each device is valid.
- * 	2. Check for devices in use.  Using libblkid to make sure that no
+ * 	2. Check for devices in use.  Using libdiskmgt, makes sure that no
  *         devices are also in use.  Some can be overridden using the 'force'
  *         flag, others cannot.
  * 	3. Check for replication errors if the 'force' flag is not specified.
@@ -63,27 +62,24 @@
  */
 
 #include <assert.h>
-#include <ctype.h>
 #include <devid.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libintl.h>
 #include <libnvpair.h>
 #include <limits.h>
-#include <sys/spa.h>
-#include <scsi/scsi.h>
-#include <scsi/sg.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/efi_partition.h>
+#include <paths.h>
 #include <sys/stat.h>
-#include <sys/vtoc.h>
+#include <sys/disk.h>
 #include <sys/mntent.h>
-#include <uuid/uuid.h>
-#include <blkid/blkid.h>
+#include <libgeom.h>
+
 #include "zpool_util.h"
-#include <sys/zfs_context.h>
+
+#define	BACKUP_SLICE	"s2"
 
 /*
  * For any given vdev specification, we can have multiple errors.  The
@@ -92,189 +88,6 @@
  */
 boolean_t error_seen;
 boolean_t is_force;
-
-typedef struct vdev_disk_db_entry
-{
-	char id[24];
-	int sector_size;
-} vdev_disk_db_entry_t;
-
-/*
- * Database of block devices that lie about physical sector sizes.  The
- * identification string must be precisely 24 characters to avoid false
- * negatives
- */
-static vdev_disk_db_entry_t vdev_disk_database[] = {
-	{"ATA     ADATA SSD S396 3", 8192},
-	{"ATA     APPLE SSD SM128E", 8192},
-	{"ATA     APPLE SSD SM256E", 8192},
-	{"ATA     APPLE SSD SM512E", 8192},
-	{"ATA     APPLE SSD SM768E", 8192},
-	{"ATA     C400-MTFDDAC064M", 8192},
-	{"ATA     C400-MTFDDAC128M", 8192},
-	{"ATA     C400-MTFDDAC256M", 8192},
-	{"ATA     C400-MTFDDAC512M", 8192},
-	{"ATA     Corsair Force 3 ", 8192},
-	{"ATA     Corsair Force GS", 8192},
-	{"ATA     INTEL SSDSA2CT04", 8192},
-	{"ATA     INTEL SSDSA2BZ10", 8192},
-	{"ATA     INTEL SSDSA2BZ20", 8192},
-	{"ATA     INTEL SSDSA2BZ30", 8192},
-	{"ATA     INTEL SSDSA2CW04", 8192},
-	{"ATA     INTEL SSDSA2CW08", 8192},
-	{"ATA     INTEL SSDSA2CW12", 8192},
-	{"ATA     INTEL SSDSA2CW16", 8192},
-	{"ATA     INTEL SSDSA2CW30", 8192},
-	{"ATA     INTEL SSDSA2CW60", 8192},
-	{"ATA     INTEL SSDSC2CT06", 8192},
-	{"ATA     INTEL SSDSC2CT12", 8192},
-	{"ATA     INTEL SSDSC2CT18", 8192},
-	{"ATA     INTEL SSDSC2CT24", 8192},
-	{"ATA     INTEL SSDSC2CW06", 8192},
-	{"ATA     INTEL SSDSC2CW12", 8192},
-	{"ATA     INTEL SSDSC2CW18", 8192},
-	{"ATA     INTEL SSDSC2CW24", 8192},
-	{"ATA     INTEL SSDSC2CW48", 8192},
-	{"ATA     KINGSTON SH100S3", 8192},
-	{"ATA     KINGSTON SH103S3", 8192},
-	{"ATA     M4-CT064M4SSD2  ", 8192},
-	{"ATA     M4-CT128M4SSD2  ", 8192},
-	{"ATA     M4-CT256M4SSD2  ", 8192},
-	{"ATA     M4-CT512M4SSD2  ", 8192},
-	{"ATA     OCZ-AGILITY2    ", 8192},
-	{"ATA     OCZ-AGILITY3    ", 8192},
-	{"ATA     OCZ-VERTEX2 3.5 ", 8192},
-	{"ATA     OCZ-VERTEX3     ", 8192},
-	{"ATA     OCZ-VERTEX3 LT  ", 8192},
-	{"ATA     OCZ-VERTEX3 MI  ", 8192},
-	{"ATA     OCZ-VERTEX4     ", 8192},
-	{"ATA     SAMSUNG MZ7WD120", 8192},
-	{"ATA     SAMSUNG MZ7WD240", 8192},
-	{"ATA     SAMSUNG MZ7WD480", 8192},
-	{"ATA     SAMSUNG MZ7WD960", 8192},
-	{"ATA     SAMSUNG SSD 830 ", 8192},
-	{"ATA     Samsung SSD 840 ", 8192},
-	{"ATA     SanDisk SSD U100", 8192},
-	{"ATA     TOSHIBA THNSNH06", 8192},
-	{"ATA     TOSHIBA THNSNH12", 8192},
-	{"ATA     TOSHIBA THNSNH25", 8192},
-	{"ATA     TOSHIBA THNSNH51", 8192},
-	{"ATA     APPLE SSD TS064C", 4096},
-	{"ATA     APPLE SSD TS128C", 4096},
-	{"ATA     APPLE SSD TS256C", 4096},
-	{"ATA     APPLE SSD TS512C", 4096},
-	{"ATA     INTEL SSDSA2M040", 4096},
-	{"ATA     INTEL SSDSA2M080", 4096},
-	{"ATA     INTEL SSDSA2M160", 4096},
-	{"ATA     INTEL SSDSC2MH12", 4096},
-	{"ATA     INTEL SSDSC2MH25", 4096},
-	{"ATA     OCZ CORE_SSD    ", 4096},
-	{"ATA     OCZ-VERTEX      ", 4096},
-	{"ATA     SAMSUNG MCCOE32G", 4096},
-	{"ATA     SAMSUNG MCCOE64G", 4096},
-	{"ATA     SAMSUNG SSD PM80", 4096},
-	/* Flash drives optimized for 4KB IOs on larger pages */
-	{"ATA     INTEL SSDSC2BA10", 4096},
-	{"ATA     INTEL SSDSC2BA20", 4096},
-	{"ATA     INTEL SSDSC2BA40", 4096},
-	{"ATA     INTEL SSDSC2BA80", 4096},
-	{"ATA     INTEL SSDSC2BB08", 4096},
-	{"ATA     INTEL SSDSC2BB12", 4096},
-	{"ATA     INTEL SSDSC2BB16", 4096},
-	{"ATA     INTEL SSDSC2BB24", 4096},
-	{"ATA     INTEL SSDSC2BB30", 4096},
-	{"ATA     INTEL SSDSC2BB40", 4096},
-	{"ATA     INTEL SSDSC2BB48", 4096},
-	{"ATA     INTEL SSDSC2BB60", 4096},
-	{"ATA     INTEL SSDSC2BB80", 4096},
-	{"ATA     INTEL SSDSC2BW24", 4096},
-	{"ATA     INTEL SSDSC2BW48", 4096},
-	{"ATA     INTEL SSDSC2BP24", 4096},
-	{"ATA     INTEL SSDSC2BP48", 4096},
-	{"NA      SmrtStorSDLKAE9W", 4096},
-	{"NVMe    Amazon EC2 NVMe ", 4096},
-	/* Imported from Open Solaris */
-	{"ATA     MARVELL SD88SA02", 4096},
-	/* Advanced format Hard drives */
-	{"ATA     Hitachi HDS5C303", 4096},
-	{"ATA     SAMSUNG HD204UI ", 4096},
-	{"ATA     ST2000DL004 HD20", 4096},
-	{"ATA     WDC WD10EARS-00M", 4096},
-	{"ATA     WDC WD10EARS-00S", 4096},
-	{"ATA     WDC WD10EARS-00Z", 4096},
-	{"ATA     WDC WD15EARS-00M", 4096},
-	{"ATA     WDC WD15EARS-00S", 4096},
-	{"ATA     WDC WD15EARS-00Z", 4096},
-	{"ATA     WDC WD20EARS-00M", 4096},
-	{"ATA     WDC WD20EARS-00S", 4096},
-	{"ATA     WDC WD20EARS-00Z", 4096},
-	{"ATA     WDC WD1600BEVT-0", 4096},
-	{"ATA     WDC WD2500BEVT-0", 4096},
-	{"ATA     WDC WD3200BEVT-0", 4096},
-	{"ATA     WDC WD5000BEVT-0", 4096},
-	/* Virtual disks: Assume zvols with default volblocksize */
-#if 0
-	{"ATA     QEMU HARDDISK   ", 8192},
-	{"IET     VIRTUAL-DISK    ", 8192},
-	{"OI      COMSTAR         ", 8192},
-	{"SUN     COMSTAR         ", 8192},
-	{"NETAPP  LUN             ", 8192},
-#endif
-};
-
-static const int vdev_disk_database_size =
-	sizeof (vdev_disk_database) / sizeof (vdev_disk_database[0]);
-
-#define	INQ_REPLY_LEN	96
-#define	INQ_CMD_LEN	6
-
-static boolean_t
-check_sector_size_database(char *path, int *sector_size)
-{
-	unsigned char inq_buff[INQ_REPLY_LEN];
-	unsigned char sense_buffer[32];
-	unsigned char inq_cmd_blk[INQ_CMD_LEN] =
-	    {INQUIRY, 0, 0, 0, INQ_REPLY_LEN, 0};
-	sg_io_hdr_t io_hdr;
-	int error;
-	int fd;
-	int i;
-
-	/* Prepare INQUIRY command */
-	memset(&io_hdr, 0, sizeof (sg_io_hdr_t));
-	io_hdr.interface_id = 'S';
-	io_hdr.cmd_len = sizeof (inq_cmd_blk);
-	io_hdr.mx_sb_len = sizeof (sense_buffer);
-	io_hdr.dxfer_direction = SG_DXFER_FROM_DEV;
-	io_hdr.dxfer_len = INQ_REPLY_LEN;
-	io_hdr.dxferp = inq_buff;
-	io_hdr.cmdp = inq_cmd_blk;
-	io_hdr.sbp = sense_buffer;
-	io_hdr.timeout = 10;		/* 10 milliseconds is ample time */
-
-	if ((fd = open(path, O_RDONLY|O_DIRECT)) < 0)
-		return (B_FALSE);
-
-	error = ioctl(fd, SG_IO, (unsigned long) &io_hdr);
-
-	(void) close(fd);
-
-	if (error < 0)
-		return (B_FALSE);
-
-	if ((io_hdr.info & SG_INFO_OK_MASK) != SG_INFO_OK)
-		return (B_FALSE);
-
-	for (i = 0; i < vdev_disk_database_size; i++) {
-		if (memcmp(inq_buff + 8, vdev_disk_database[i].id, 24))
-			continue;
-
-		*sector_size = vdev_disk_database[i].sector_size;
-		return (B_TRUE);
-	}
-
-	return (B_FALSE);
-}
 
 /*PRINTFLIKE1*/
 static void
@@ -297,6 +110,170 @@ vdev_error(const char *fmt, ...)
 	(void) vfprintf(stderr, fmt, ap);
 	va_end(ap);
 }
+
+#ifdef illumos
+static void
+libdiskmgt_error(int error)
+{
+	/*
+	 * ENXIO/ENODEV is a valid error message if the device doesn't live in
+	 * /dev/dsk.  Don't bother printing an error message in this case.
+	 */
+	if (error == ENXIO || error == ENODEV)
+		return;
+
+	(void) fprintf(stderr, gettext("warning: device in use checking "
+	    "failed: %s\n"), strerror(error));
+}
+
+/*
+ * Validate a device, passing the bulk of the work off to libdiskmgt.
+ */
+static int
+check_slice(const char *path, int force, boolean_t wholedisk, boolean_t isspare)
+{
+	char *msg;
+	int error = 0;
+	dm_who_type_t who;
+
+	if (force)
+		who = DM_WHO_ZPOOL_FORCE;
+	else if (isspare)
+		who = DM_WHO_ZPOOL_SPARE;
+	else
+		who = DM_WHO_ZPOOL;
+
+	if (dm_inuse((char *)path, &msg, who, &error) || error) {
+		if (error != 0) {
+			libdiskmgt_error(error);
+			return (0);
+		} else {
+			vdev_error("%s", msg);
+			free(msg);
+			return (-1);
+		}
+	}
+
+	/*
+	 * If we're given a whole disk, ignore overlapping slices since we're
+	 * about to label it anyway.
+	 */
+	error = 0;
+	if (!wholedisk && !force &&
+	    (dm_isoverlapping((char *)path, &msg, &error) || error)) {
+		if (error == 0) {
+			/* dm_isoverlapping returned -1 */
+			vdev_error(gettext("%s overlaps with %s\n"), path, msg);
+			free(msg);
+			return (-1);
+		} else if (error != ENODEV) {
+			/* libdiskmgt's devcache only handles physical drives */
+			libdiskmgt_error(error);
+			return (0);
+		}
+	}
+
+	return (0);
+}
+
+
+/*
+ * Validate a whole disk.  Iterate over all slices on the disk and make sure
+ * that none is in use by calling check_slice().
+ */
+static int
+check_disk(const char *name, dm_descriptor_t disk, int force, int isspare)
+{
+	dm_descriptor_t *drive, *media, *slice;
+	int err = 0;
+	int i;
+	int ret;
+
+	/*
+	 * Get the drive associated with this disk.  This should never fail,
+	 * because we already have an alias handle open for the device.
+	 */
+	if ((drive = dm_get_associated_descriptors(disk, DM_DRIVE,
+	    &err)) == NULL || *drive == NULL) {
+		if (err)
+			libdiskmgt_error(err);
+		return (0);
+	}
+
+	if ((media = dm_get_associated_descriptors(*drive, DM_MEDIA,
+	    &err)) == NULL) {
+		dm_free_descriptors(drive);
+		if (err)
+			libdiskmgt_error(err);
+		return (0);
+	}
+
+	dm_free_descriptors(drive);
+
+	/*
+	 * It is possible that the user has specified a removable media drive,
+	 * and the media is not present.
+	 */
+	if (*media == NULL) {
+		dm_free_descriptors(media);
+		vdev_error(gettext("'%s' has no media in drive\n"), name);
+		return (-1);
+	}
+
+	if ((slice = dm_get_associated_descriptors(*media, DM_SLICE,
+	    &err)) == NULL) {
+		dm_free_descriptors(media);
+		if (err)
+			libdiskmgt_error(err);
+		return (0);
+	}
+
+	dm_free_descriptors(media);
+
+	ret = 0;
+
+	/*
+	 * Iterate over all slices and report any errors.  We don't care about
+	 * overlapping slices because we are using the whole disk.
+	 */
+	for (i = 0; slice[i] != NULL; i++) {
+		char *name = dm_get_name(slice[i], &err);
+
+		if (check_slice(name, force, B_TRUE, isspare) != 0)
+			ret = -1;
+
+		dm_free_name(name);
+	}
+
+	dm_free_descriptors(slice);
+	return (ret);
+}
+
+/*
+ * Validate a device.
+ */
+static int
+check_device(const char *path, boolean_t force, boolean_t isspare)
+{
+	dm_descriptor_t desc;
+	int err;
+	char *dev;
+
+	/*
+	 * For whole disks, libdiskmgt does not include the leading dev path.
+	 */
+	dev = strrchr(path, '/');
+	assert(dev != NULL);
+	dev++;
+	if ((desc = dm_get_descriptor_by_name(DM_ALIAS, dev, &err)) != NULL) {
+		err = check_disk(path, desc, force, isspare);
+		dm_free_descriptor(desc);
+		return (err);
+	}
+
+	return (check_slice(path, force, B_FALSE, isspare));
+}
+#endif	/* illumos */
 
 /*
  * Check that a file is valid.  All we can do in this case is check that it's
@@ -338,11 +315,8 @@ check_file(const char *file, boolean_t force, boolean_t isspare)
 		/*
 		 * Allow hot spares to be shared between pools.
 		 */
-		if (state == POOL_STATE_SPARE && isspare) {
-			free(name);
-			(void) close(fd);
+		if (state == POOL_STATE_SPARE && isspare)
 			return (0);
-		}
 
 		if (state == POOL_STATE_ACTIVE ||
 		    state == POOL_STATE_SPARE || !force) {
@@ -367,221 +341,55 @@ check_file(const char *file, boolean_t force, boolean_t isspare)
 }
 
 static int
-check_slice(const char *path, blkid_cache cache, int force, boolean_t isspare)
+check_device(const char *name, boolean_t force, boolean_t isspare)
 {
-	int err;
-	char *value;
+	char path[MAXPATHLEN];
 
-	/* No valid type detected device is safe to use */
-	value = blkid_get_tag_value(cache, "TYPE", path);
-	if (value == NULL)
-		return (0);
+	if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) != 0)
+		snprintf(path, sizeof(path), "%s%s", _PATH_DEV, name);
+	else
+		strlcpy(path, name, sizeof(path));
 
-	/*
-	 * If libblkid detects a ZFS device, we check the device
-	 * using check_file() to see if it's safe.  The one safe
-	 * case is a spare device shared between multiple pools.
-	 */
-	if (strcmp(value, "zfs_member") == 0) {
-		err = check_file(path, force, isspare);
-	} else {
-		if (force) {
-			err = 0;
-		} else {
-			err = -1;
-			vdev_error(gettext("%s contains a filesystem of "
-			    "type '%s'\n"), path, value);
-		}
-	}
-
-	free(value);
-
-	return (err);
+	return (check_file(path, force, isspare));
 }
 
 /*
- * Validate that a disk including all partitions are safe to use.
- *
- * For EFI labeled disks this can done relatively easily with the libefi
- * library.  The partition numbers are extracted from the label and used
- * to generate the expected /dev/ paths.  Each partition can then be
- * checked for conflicts.
- *
- * For non-EFI labeled disks (MBR/EBR/etc) the same process is possible
- * but due to the lack of a readily available libraries this scanning is
- * not implemented.  Instead only the device path as given is checked.
- */
-static int
-check_disk(const char *path, blkid_cache cache, int force,
-    boolean_t isspare, boolean_t iswholedisk)
-{
-	struct dk_gpt *vtoc;
-	char slice_path[MAXPATHLEN];
-	int err = 0;
-	int fd, i;
-
-	if (!iswholedisk)
-		return (check_slice(path, cache, force, isspare));
-
-	if ((fd = open(path, O_RDONLY|O_DIRECT|O_EXCL)) < 0) {
-		char *value = blkid_get_tag_value(cache, "TYPE", path);
-		(void) fprintf(stderr, gettext("%s is in use and contains "
-		    "a %s filesystem.\n"), path, value ? value : "unknown");
-		return (-1);
-	}
-
-	/*
-	 * Expected to fail for non-EFI labled disks.  Just check the device
-	 * as given and do not attempt to detect and scan partitions.
-	 */
-	err = efi_alloc_and_read(fd, &vtoc);
-	if (err) {
-		(void) close(fd);
-		return (check_slice(path, cache, force, isspare));
-	}
-
-	/*
-	 * The primary efi partition label is damaged however the secondary
-	 * label at the end of the device is intact.  Rather than use this
-	 * label we should play it safe and treat this as a non efi device.
-	 */
-	if (vtoc->efi_flags & EFI_GPT_PRIMARY_CORRUPT) {
-		efi_free(vtoc);
-		(void) close(fd);
-
-		if (force) {
-			/* Partitions will now be created using the backup */
-			return (0);
-		} else {
-			vdev_error(gettext("%s contains a corrupt primary "
-			    "EFI label.\n"), path);
-			return (-1);
-		}
-	}
-
-	for (i = 0; i < vtoc->efi_nparts; i++) {
-
-		if (vtoc->efi_parts[i].p_tag == V_UNASSIGNED ||
-		    uuid_is_null((uchar_t *)&vtoc->efi_parts[i].p_guid))
-			continue;
-
-		if (strncmp(path, UDISK_ROOT, strlen(UDISK_ROOT)) == 0)
-			(void) snprintf(slice_path, sizeof (slice_path),
-			    "%s%s%d", path, "-part", i+1);
-		else
-			(void) snprintf(slice_path, sizeof (slice_path),
-			    "%s%s%d", path, isdigit(path[strlen(path)-1]) ?
-			    "p" : "", i+1);
-
-		err = check_slice(slice_path, cache, force, isspare);
-		if (err)
-			break;
-	}
-
-	efi_free(vtoc);
-	(void) close(fd);
-
-	return (err);
-}
-
-static int
-check_device(const char *path, boolean_t force,
-    boolean_t isspare, boolean_t iswholedisk)
-{
-	blkid_cache cache;
-	int error;
-
-	error = blkid_get_cache(&cache, NULL);
-	if (error != 0) {
-		(void) fprintf(stderr, gettext("unable to access the blkid "
-		    "cache.\n"));
-		return (-1);
-	}
-
-	error = check_disk(path, cache, force, isspare, iswholedisk);
-	blkid_put_cache(cache);
-
-	return (error);
-}
-
-/*
- * This may be a shorthand device path or it could be total gibberish.
- * Check to see if it is a known device available in zfs_vdev_paths.
- * As part of this check, see if we've been given an entire disk
- * (minus the slice number).
- */
-static int
-is_shorthand_path(const char *arg, char *path, size_t path_size,
-    struct stat64 *statbuf, boolean_t *wholedisk)
-{
-	int error;
-
-	error = zfs_resolve_shortname(arg, path, path_size);
-	if (error == 0) {
-		*wholedisk = zfs_dev_is_whole_disk(path);
-		if (*wholedisk || (stat64(path, statbuf) == 0))
-			return (0);
-	}
-
-	strlcpy(path, arg, path_size);
-	memset(statbuf, 0, sizeof (*statbuf));
-	*wholedisk = B_FALSE;
-
-	return (error);
-}
-
-/*
- * Determine if the given path is a hot spare within the given configuration.
- * If no configuration is given we rely solely on the label.
+ * By "whole disk" we mean an entire physical disk (something we can
+ * label, toggle the write cache on, etc.) as opposed to the full
+ * capacity of a pseudo-device such as lofi or did.  We act as if we
+ * are labeling the disk, which should be a pretty good test of whether
+ * it's a viable device or not.  Returns B_TRUE if it is and B_FALSE if
+ * it isn't.
  */
 static boolean_t
-is_spare(nvlist_t *config, const char *path)
+is_whole_disk(const char *arg)
 {
-	int fd;
-	pool_state_t state;
-	char *name = NULL;
-	nvlist_t *label;
-	uint64_t guid, spareguid;
-	nvlist_t *nvroot;
-	nvlist_t **spares;
-	uint_t i, nspares;
-	boolean_t inuse;
+#ifdef illumos
+	struct dk_gpt *label;
+	int	fd;
+	char	path[MAXPATHLEN];
 
-	if ((fd = open(path, O_RDONLY)) < 0)
+	(void) snprintf(path, sizeof (path), "%s%s%s",
+	    ZFS_RDISK_ROOT, strrchr(arg, '/'), BACKUP_SLICE);
+	if ((fd = open(path, O_RDWR | O_NDELAY)) < 0)
 		return (B_FALSE);
-
-	if (zpool_in_use(g_zfs, fd, &state, &name, &inuse) != 0 ||
-	    !inuse ||
-	    state != POOL_STATE_SPARE ||
-	    zpool_read_label(fd, &label, NULL) != 0) {
-		free(name);
+	if (efi_alloc_and_init(fd, EFI_NUMPAR, &label) != 0) {
 		(void) close(fd);
 		return (B_FALSE);
 	}
-	free(name);
+	efi_free(label);
 	(void) close(fd);
+	return (B_TRUE);
+#else
+	int fd;
 
-	if (config == NULL) {
-		nvlist_free(label);
+	fd = g_open(arg, 0);
+	if (fd >= 0) {
+		g_close(fd);
 		return (B_TRUE);
 	}
-
-	verify(nvlist_lookup_uint64(label, ZPOOL_CONFIG_GUID, &guid) == 0);
-	nvlist_free(label);
-
-	verify(nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE,
-	    &nvroot) == 0);
-	if (nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_SPARES,
-	    &spares, &nspares) == 0) {
-		for (i = 0; i < nspares; i++) {
-			verify(nvlist_lookup_uint64(spares[i],
-			    ZPOOL_CONFIG_GUID, &spareguid) == 0);
-			if (spareguid == guid)
-				return (B_TRUE);
-		}
-	}
-
 	return (B_FALSE);
+#endif
 }
 
 /*
@@ -589,20 +397,18 @@ is_spare(nvlist_t *config, const char *path)
  * device, fill in the device id to make a complete nvlist.  Valid forms for a
  * leaf vdev are:
  *
- *	/dev/xxx	Complete disk path
- *	/xxx		Full path to file
- *	xxx		Shorthand for <zfs_vdev_paths>/xxx
+ * 	/dev/dsk/xxx	Complete disk path
+ * 	/xxx		Full path to file
+ * 	xxx		Shorthand for /dev/dsk/xxx
  */
 static nvlist_t *
-make_leaf_vdev(nvlist_t *props, const char *arg, uint64_t is_log)
+make_leaf_vdev(const char *arg, uint64_t is_log)
 {
 	char path[MAXPATHLEN];
 	struct stat64 statbuf;
 	nvlist_t *vdev = NULL;
 	char *type = NULL;
 	boolean_t wholedisk = B_FALSE;
-	uint64_t ashift = 0;
-	int err;
 
 	/*
 	 * Determine what type of vdev this is, and put the full path into
@@ -612,32 +418,30 @@ make_leaf_vdev(nvlist_t *props, const char *arg, uint64_t is_log)
 	if (arg[0] == '/') {
 		/*
 		 * Complete device or file path.  Exact type is determined by
-		 * examining the file descriptor afterwards.  Symbolic links
-		 * are resolved to their real paths to determine whole disk
-		 * and S_ISBLK/S_ISREG type checks.  However, we are careful
-		 * to store the given path as ZPOOL_CONFIG_PATH to ensure we
-		 * can leverage udev's persistent device labels.
+		 * examining the file descriptor afterwards.
 		 */
-		if (realpath(arg, path) == NULL) {
-			(void) fprintf(stderr,
-			    gettext("cannot resolve path '%s'\n"), arg);
-			return (NULL);
-		}
-
-		wholedisk = zfs_dev_is_whole_disk(path);
-		if (!wholedisk && (stat64(path, &statbuf) != 0)) {
+		wholedisk = is_whole_disk(arg);
+		if (!wholedisk && (stat64(arg, &statbuf) != 0)) {
 			(void) fprintf(stderr,
 			    gettext("cannot open '%s': %s\n"),
-			    path, strerror(errno));
+			    arg, strerror(errno));
 			return (NULL);
 		}
 
-		/* After whole disk check restore original passed path */
-		strlcpy(path, arg, sizeof (path));
+		(void) strlcpy(path, arg, sizeof (path));
 	} else {
-		err = is_shorthand_path(arg, path, sizeof (path),
-		    &statbuf, &wholedisk);
-		if (err != 0) {
+		/*
+		 * This may be a short path for a device, or it could be total
+		 * gibberish.  Check to see if it's a known device in
+		 * /dev/dsk/.  As part of this check, see if we've been given a
+		 * an entire disk (minus the slice number).
+		 */
+		if (strncmp(arg, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+			strlcpy(path, arg, sizeof (path));
+		else
+			snprintf(path, sizeof (path), "%s%s", _PATH_DEV, arg);
+		wholedisk = is_whole_disk(path);
+		if (!wholedisk && (stat64(path, &statbuf) != 0)) {
 			/*
 			 * If we got ENOENT, then the user gave us
 			 * gibberish, so try to direct them with a
@@ -645,10 +449,10 @@ make_leaf_vdev(nvlist_t *props, const char *arg, uint64_t is_log)
 			 * regurgitate strerror() since it's the best we
 			 * can do.
 			 */
-			if (err == ENOENT) {
+			if (errno == ENOENT) {
 				(void) fprintf(stderr,
 				    gettext("cannot open '%s': no such "
-				    "device in %s\n"), arg, DISK_ROOT);
+				    "GEOM provider\n"), arg);
 				(void) fprintf(stderr,
 				    gettext("must be a full path or "
 				    "shorthand device name\n"));
@@ -662,6 +466,14 @@ make_leaf_vdev(nvlist_t *props, const char *arg, uint64_t is_log)
 		}
 	}
 
+#ifdef __FreeBSD__
+	if (S_ISCHR(statbuf.st_mode)) {
+		statbuf.st_mode &= ~S_IFCHR;
+		statbuf.st_mode |= S_IFBLK;
+		wholedisk = B_FALSE;
+	}
+#endif
+
 	/*
 	 * Determine whether this is a device or a file.
 	 */
@@ -671,7 +483,7 @@ make_leaf_vdev(nvlist_t *props, const char *arg, uint64_t is_log)
 		type = VDEV_TYPE_FILE;
 	} else {
 		(void) fprintf(stderr, gettext("cannot use '%s': must be a "
-		    "block device or regular file\n"), path);
+		    "GEOM provider or regular file\n"), path);
 		return (NULL);
 	}
 
@@ -684,51 +496,46 @@ make_leaf_vdev(nvlist_t *props, const char *arg, uint64_t is_log)
 	verify(nvlist_add_string(vdev, ZPOOL_CONFIG_PATH, path) == 0);
 	verify(nvlist_add_string(vdev, ZPOOL_CONFIG_TYPE, type) == 0);
 	verify(nvlist_add_uint64(vdev, ZPOOL_CONFIG_IS_LOG, is_log) == 0);
-	if (is_log)
-		verify(nvlist_add_string(vdev, ZPOOL_CONFIG_ALLOCATION_BIAS,
-		    VDEV_ALLOC_BIAS_LOG) == 0);
 	if (strcmp(type, VDEV_TYPE_DISK) == 0)
 		verify(nvlist_add_uint64(vdev, ZPOOL_CONFIG_WHOLE_DISK,
 		    (uint64_t)wholedisk) == 0);
 
+#ifdef have_devid
 	/*
-	 * Override defaults if custom properties are provided.
+	 * For a whole disk, defer getting its devid until after labeling it.
 	 */
-	if (props != NULL) {
-		char *value = NULL;
+	if (S_ISBLK(statbuf.st_mode) && !wholedisk) {
+		/*
+		 * Get the devid for the device.
+		 */
+		int fd;
+		ddi_devid_t devid;
+		char *minor = NULL, *devid_str = NULL;
 
-		if (nvlist_lookup_string(props,
-		    zpool_prop_to_name(ZPOOL_PROP_ASHIFT), &value) == 0) {
-			if (zfs_nicestrtonum(NULL, value, &ashift) != 0) {
-				(void) fprintf(stderr,
-				    gettext("ashift must be a number.\n"));
-				return (NULL);
-			}
-			if (ashift != 0 &&
-			    (ashift < ASHIFT_MIN || ashift > ASHIFT_MAX)) {
-				(void) fprintf(stderr,
-				    gettext("invalid 'ashift=%" PRIu64 "' "
-				    "property: only values between %" PRId32 " "
-				    "and %" PRId32 " are allowed.\n"),
-				    ashift, ASHIFT_MIN, ASHIFT_MAX);
-				return (NULL);
-			}
+		if ((fd = open(path, O_RDONLY)) < 0) {
+			(void) fprintf(stderr, gettext("cannot open '%s': "
+			    "%s\n"), path, strerror(errno));
+			nvlist_free(vdev);
+			return (NULL);
 		}
+
+		if (devid_get(fd, &devid) == 0) {
+			if (devid_get_minor_name(fd, &minor) == 0 &&
+			    (devid_str = devid_str_encode(devid, minor)) !=
+			    NULL) {
+				verify(nvlist_add_string(vdev,
+				    ZPOOL_CONFIG_DEVID, devid_str) == 0);
+			}
+			if (devid_str != NULL)
+				devid_str_free(devid_str);
+			if (minor != NULL)
+				devid_str_free(minor);
+			devid_free(devid);
+		}
+
+		(void) close(fd);
 	}
-
-	/*
-	 * If the device is known to incorrectly report its physical sector
-	 * size explicitly provide the known correct value.
-	 */
-	if (ashift == 0) {
-		int sector_size;
-
-		if (check_sector_size_database(path, &sector_size) == B_TRUE)
-			ashift = highbit64(sector_size) - 1;
-	}
-
-	if (ashift > 0)
-		(void) nvlist_add_uint64(vdev, ZPOOL_CONFIG_ASHIFT, ashift);
+#endif
 
 	return (vdev);
 }
@@ -745,9 +552,6 @@ make_leaf_vdev(nvlist_t *props, const char *arg, uint64_t is_log)
  *
  * 	Otherwise, make sure that the current spec (if there is one) and the new
  * 	spec have consistent replication levels.
- *
- *	If there is no current spec (create), make sure new spec has at least
- *	one general purpose vdev.
  */
 typedef struct replication_level {
 	char *zprl_type;
@@ -756,19 +560,6 @@ typedef struct replication_level {
 } replication_level_t;
 
 #define	ZPOOL_FUZZ	(16 * 1024 * 1024)
-
-static boolean_t
-is_raidz_mirror(replication_level_t *a, replication_level_t *b,
-    replication_level_t **raidz, replication_level_t **mirror)
-{
-	if (strcmp(a->zprl_type, "raidz") == 0 &&
-	    strcmp(b->zprl_type, "mirror") == 0) {
-		*raidz = a;
-		*mirror = b;
-		return (B_TRUE);
-	}
-	return (B_FALSE);
-}
 
 /*
  * Given a list of toplevel vdevs, return the current replication level.  If
@@ -787,7 +578,6 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 	replication_level_t lastrep = {0};
 	replication_level_t rep;
 	replication_level_t *ret;
-	replication_level_t *raidz, *mirror;
 	boolean_t dontreport;
 
 	ret = safe_malloc(sizeof (replication_level_t));
@@ -808,11 +598,8 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 		if (is_log)
 			continue;
 
-		/* Ignore holes introduced by removing aux devices */
-		verify(nvlist_lookup_string(nv, ZPOOL_CONFIG_TYPE, &type) == 0);
-		if (strcmp(type, VDEV_TYPE_HOLE) == 0)
-			continue;
-
+		verify(nvlist_lookup_string(nv, ZPOOL_CONFIG_TYPE,
+		    &type) == 0);
 		if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
 		    &child, &children) != 0) {
 			/*
@@ -854,6 +641,7 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 			dontreport = 0;
 			vdev_size = -1ULL;
 			for (c = 0; c < children; c++) {
+				boolean_t is_replacing, is_spare;
 				nvlist_t *cnv = child[c];
 				char *path;
 				struct stat64 statbuf;
@@ -868,25 +656,41 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 
 				/*
 				 * If this is a replacing or spare vdev, then
-				 * get the real first child of the vdev: do this
-				 * in a loop because replacing and spare vdevs
-				 * can be nested.
+				 * get the real first child of the vdev.
 				 */
-				while (strcmp(childtype,
-				    VDEV_TYPE_REPLACING) == 0 ||
-				    strcmp(childtype, VDEV_TYPE_SPARE) == 0) {
+				is_replacing = strcmp(childtype,
+				    VDEV_TYPE_REPLACING) == 0;
+				is_spare = strcmp(childtype,
+				    VDEV_TYPE_SPARE) == 0;
+				if (is_replacing || is_spare) {
 					nvlist_t **rchild;
 					uint_t rchildren;
 
 					verify(nvlist_lookup_nvlist_array(cnv,
 					    ZPOOL_CONFIG_CHILDREN, &rchild,
 					    &rchildren) == 0);
-					assert(rchildren == 2);
+					assert((is_replacing && rchildren == 2)
+					    || (is_spare && rchildren >= 2));
 					cnv = rchild[0];
 
 					verify(nvlist_lookup_string(cnv,
 					    ZPOOL_CONFIG_TYPE,
 					    &childtype) == 0);
+					if (strcmp(childtype,
+					    VDEV_TYPE_SPARE) == 0) {
+						/* We have a replacing vdev with
+						 * a spare child.  Get the first
+						 * real child of the spare
+						 */
+						verify(
+						    nvlist_lookup_nvlist_array(
+							cnv,
+							ZPOOL_CONFIG_CHILDREN,
+							&rchild,
+						    &rchildren) == 0);
+						assert(rchildren >= 2);
+						cnv = rchild[0];
+					}
 				}
 
 				verify(nvlist_lookup_string(cnv,
@@ -928,7 +732,7 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 				 * this device altogether.
 				 */
 				if ((fd = open(path, O_RDONLY)) >= 0) {
-					err = fstat64_blk(fd, &statbuf);
+					err = fstat64(fd, &statbuf);
 					(void) close(fd);
 				} else {
 					err = stat64(path, &statbuf);
@@ -971,39 +775,11 @@ get_replication(nvlist_t *nvroot, boolean_t fatal)
 
 		/*
 		 * At this point, we have the replication of the last toplevel
-		 * vdev in 'rep'.  Compare it to 'lastrep' to see if it is
+		 * vdev in 'rep'.  Compare it to 'lastrep' to see if its
 		 * different.
 		 */
 		if (lastrep.zprl_type != NULL) {
-			if (is_raidz_mirror(&lastrep, &rep, &raidz, &mirror) ||
-			    is_raidz_mirror(&rep, &lastrep, &raidz, &mirror)) {
-				/*
-				 * Accepted raidz and mirror when they can
-				 * handle the same number of disk failures.
-				 */
-				if (raidz->zprl_parity !=
-				    mirror->zprl_children - 1) {
-					if (ret != NULL)
-						free(ret);
-					ret = NULL;
-					if (fatal)
-						vdev_error(gettext(
-						    "mismatched replication "
-						    "level: "
-						    "%s and %s vdevs with "
-						    "different redundancy, "
-						    "%llu vs. %llu (%llu-way) "
-						    "are present\n"),
-						    raidz->zprl_type,
-						    mirror->zprl_type,
-						    raidz->zprl_parity,
-						    mirror->zprl_children - 1,
-						    mirror->zprl_children);
-					else
-						return (NULL);
-				}
-			} else if (strcmp(lastrep.zprl_type, rep.zprl_type) !=
-			    0) {
+			if (strcmp(lastrep.zprl_type, rep.zprl_type) != 0) {
 				if (ret != NULL)
 					free(ret);
 				ret = NULL;
@@ -1066,7 +842,6 @@ check_replication(nvlist_t *config, nvlist_t *newroot)
 	nvlist_t **child;
 	uint_t	children;
 	replication_level_t *current = NULL, *new;
-	replication_level_t *raidz, *mirror;
 	int ret;
 
 	/*
@@ -1114,21 +889,7 @@ check_replication(nvlist_t *config, nvlist_t *newroot)
 	 */
 	ret = 0;
 	if (current != NULL) {
-		if (is_raidz_mirror(current, new, &raidz, &mirror) ||
-		    is_raidz_mirror(new, current, &raidz, &mirror)) {
-			if (raidz->zprl_parity != mirror->zprl_children - 1) {
-				vdev_error(gettext(
-				    "mismatched replication level: pool and "
-				    "new vdev with different redundancy, %s "
-				    "and %s vdevs, %llu vs. %llu (%llu-way)\n"),
-				    raidz->zprl_type,
-				    mirror->zprl_type,
-				    raidz->zprl_parity,
-				    mirror->zprl_children - 1,
-				    mirror->zprl_children);
-				ret = -1;
-			}
-		} else if (strcmp(current->zprl_type, new->zprl_type) != 0) {
+		if (strcmp(current->zprl_type, new->zprl_type) != 0) {
 			vdev_error(gettext(
 			    "mismatched replication level: pool uses %s "
 			    "and new vdev is %s\n"),
@@ -1157,62 +918,31 @@ check_replication(nvlist_t *config, nvlist_t *newroot)
 	return (ret);
 }
 
-static int
-zero_label(char *path)
-{
-	const int size = 4096;
-	char buf[size];
-	int err, fd;
-
-	if ((fd = open(path, O_WRONLY|O_EXCL)) < 0) {
-		(void) fprintf(stderr, gettext("cannot open '%s': %s\n"),
-		    path, strerror(errno));
-		return (-1);
-	}
-
-	memset(buf, 0, size);
-	err = write(fd, buf, size);
-	(void) fdatasync(fd);
-	(void) close(fd);
-
-	if (err == -1) {
-		(void) fprintf(stderr, gettext("cannot zero first %d bytes "
-		    "of '%s': %s\n"), size, path, strerror(errno));
-		return (-1);
-	}
-
-	if (err != size) {
-		(void) fprintf(stderr, gettext("could only zero %d/%d bytes "
-		    "of '%s'\n"), err, size, path);
-		return (-1);
-	}
-
-	return (0);
-}
-
+#ifdef illumos
 /*
  * Go through and find any whole disks in the vdev specification, labelling them
  * as appropriate.  When constructing the vdev spec, we were unable to open this
  * device in order to provide a devid.  Now that we have labelled the disk and
- * know that slice 0 is valid, we can construct the devid now.
+ * know the pool slice is valid, we can construct the devid now.
  *
  * If the disk was already labeled with an EFI label, we will have gotten the
  * devid already (because we were able to open the whole disk).  Otherwise, we
  * need to get the devid after we label the disk.
  */
 static int
-make_disks(zpool_handle_t *zhp, nvlist_t *nv)
+make_disks(zpool_handle_t *zhp, nvlist_t *nv, zpool_boot_label_t boot_type,
+    uint64_t boot_size)
 {
 	nvlist_t **child;
 	uint_t c, children;
-	char *type, *path;
-	char devpath[MAXPATHLEN];
-	char udevpath[MAXPATHLEN];
+	char *type, *path, *diskname;
+	char buf[MAXPATHLEN];
 	uint64_t wholedisk;
-	struct stat64 statbuf;
-	int is_exclusive = 0;
 	int fd;
 	int ret;
+	int slice;
+	ddi_devid_t devid;
+	char *minor = NULL, *devid_str = NULL;
 
 	verify(nvlist_lookup_string(nv, ZPOOL_CONFIG_TYPE, &type) == 0);
 
@@ -1223,131 +953,156 @@ make_disks(zpool_handle_t *zhp, nvlist_t *nv)
 			return (0);
 
 		/*
-		 * We have a disk device.  If this is a whole disk write
-		 * out the efi partition table, otherwise write zero's to
-		 * the first 4k of the partition.  This is to ensure that
-		 * libblkid will not misidentify the partition due to a
-		 * magic value left by the previous filesystem.
+		 * We have a disk device.  Get the path to the device
+		 * and see if it's a whole disk by appending the backup
+		 * slice and stat()ing the device.
 		 */
-		verify(!nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path));
-		verify(!nvlist_lookup_uint64(nv, ZPOOL_CONFIG_WHOLE_DISK,
-		    &wholedisk));
+		verify(nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path) == 0);
 
-		if (!wholedisk) {
+		diskname = strrchr(path, '/');
+		assert(diskname != NULL);
+		diskname++;
+
+		if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_WHOLE_DISK,
+		    &wholedisk) != 0 || !wholedisk) {
 			/*
-			 * Update device id string for mpath nodes (Linux only)
+			 * This is not whole disk, return error if
+			 * boot partition creation was requested
 			 */
-			if (is_mpath_whole_disk(path))
-				update_vdev_config_dev_strs(nv);
-
-			if (!is_spare(NULL, path))
-				(void) zero_label(path);
+			if (boot_type == ZPOOL_CREATE_BOOT_LABEL) {
+				(void) fprintf(stderr,
+				    gettext("creating boot partition is only "
+				    "supported on whole disk vdevs: %s\n"),
+				    diskname);
+				return (-1);
+			}
 			return (0);
 		}
 
-		if (realpath(path, devpath) == NULL) {
-			ret = errno;
-			(void) fprintf(stderr,
-			    gettext("cannot resolve path '%s'\n"), path);
+		ret = zpool_label_disk(g_zfs, zhp, diskname, boot_type,
+		    boot_size, &slice);
+		if (ret == -1)
 			return (ret);
-		}
 
 		/*
-		 * Remove any previously existing symlink from a udev path to
-		 * the device before labeling the disk.  This ensures that
-		 * only newly created links are used.  Otherwise there is a
-		 * window between when udev deletes and recreates the link
-		 * during which access attempts will fail with ENOENT.
+		 * Fill in the devid, now that we've labeled the disk.
 		 */
-		strlcpy(udevpath, path, MAXPATHLEN);
-		(void) zfs_append_partition(udevpath, MAXPATHLEN);
+		(void) snprintf(buf, sizeof (buf), "%ss%d", path, slice);
+		if ((fd = open(buf, O_RDONLY)) < 0) {
+			(void) fprintf(stderr,
+			    gettext("cannot open '%s': %s\n"),
+			    buf, strerror(errno));
+			return (-1);
+		}
 
-		fd = open(devpath, O_RDWR|O_EXCL);
-		if (fd == -1) {
-			if (errno == EBUSY)
-				is_exclusive = 1;
-		} else {
-			(void) close(fd);
+		if (devid_get(fd, &devid) == 0) {
+			if (devid_get_minor_name(fd, &minor) == 0 &&
+			    (devid_str = devid_str_encode(devid, minor)) !=
+			    NULL) {
+				verify(nvlist_add_string(nv,
+				    ZPOOL_CONFIG_DEVID, devid_str) == 0);
+			}
+			if (devid_str != NULL)
+				devid_str_free(devid_str);
+			if (minor != NULL)
+				devid_str_free(minor);
+			devid_free(devid);
 		}
 
 		/*
-		 * If the partition exists, contains a valid spare label,
-		 * and is opened exclusively there is no need to partition
-		 * it.  Hot spares have already been partitioned and are
-		 * held open exclusively by the kernel as a safety measure.
-		 *
-		 * If the provided path is for a /dev/disk/ device its
-		 * symbolic link will be removed, partition table created,
-		 * and then block until udev creates the new link.
-		 */
-		if (!is_exclusive || !is_spare(NULL, udevpath)) {
-			char *devnode = strrchr(devpath, '/') + 1;
-
-			ret = strncmp(udevpath, UDISK_ROOT, strlen(UDISK_ROOT));
-			if (ret == 0) {
-				ret = lstat64(udevpath, &statbuf);
-				if (ret == 0 && S_ISLNK(statbuf.st_mode))
-					(void) unlink(udevpath);
-			}
-
-			/*
-			 * When labeling a pool the raw device node name
-			 * is provided as it appears under /dev/.
-			 */
-			if (zpool_label_disk(g_zfs, zhp, devnode) == -1)
-				return (-1);
-
-			/*
-			 * Wait for udev to signal the device is available
-			 * by the provided path.
-			 */
-			ret = zpool_label_disk_wait(udevpath, DISK_LABEL_WAIT);
-			if (ret) {
-				(void) fprintf(stderr,
-				    gettext("missing link: %s was "
-				    "partitioned but %s is missing\n"),
-				    devnode, udevpath);
-				return (ret);
-			}
-
-			ret = zero_label(udevpath);
-			if (ret)
-				return (ret);
-		}
-
-		/*
-		 * Update the path to refer to the partition.  The presence of
+		 * Update the path to refer to the pool slice.  The presence of
 		 * the 'whole_disk' field indicates to the CLI that we should
-		 * chop off the partition number when displaying the device in
+		 * chop off the slice number when displaying the device in
 		 * future output.
 		 */
-		verify(nvlist_add_string(nv, ZPOOL_CONFIG_PATH, udevpath) == 0);
+		verify(nvlist_add_string(nv, ZPOOL_CONFIG_PATH, buf) == 0);
 
-		/*
-		 * Update device id strings for whole disks (Linux only)
-		 */
-		update_vdev_config_dev_strs(nv);
+		(void) close(fd);
 
 		return (0);
 	}
 
-	for (c = 0; c < children; c++)
-		if ((ret = make_disks(zhp, child[c])) != 0)
+	/* illumos kernel does not support booting from multi-vdev pools. */
+	if ((boot_type == ZPOOL_CREATE_BOOT_LABEL)) {
+		if ((strcmp(type, VDEV_TYPE_ROOT) == 0) && children > 1) {
+			(void) fprintf(stderr, gettext("boot pool "
+			    "can not have more than one vdev\n"));
+			return (-1);
+		}
+	}
+
+	for (c = 0; c < children; c++) {
+		ret = make_disks(zhp, child[c], boot_type, boot_size);
+		if (ret != 0)
 			return (ret);
+	}
 
 	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_SPARES,
 	    &child, &children) == 0)
-		for (c = 0; c < children; c++)
-			if ((ret = make_disks(zhp, child[c])) != 0)
+		for (c = 0; c < children; c++) {
+			ret = make_disks(zhp, child[c], boot_type, boot_size);
+			if (ret != 0)
 				return (ret);
+		}
 
 	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_L2CACHE,
 	    &child, &children) == 0)
-		for (c = 0; c < children; c++)
-			if ((ret = make_disks(zhp, child[c])) != 0)
+		for (c = 0; c < children; c++) {
+			ret = make_disks(zhp, child[c], boot_type, boot_size);
+			if (ret != 0)
 				return (ret);
+		}
 
 	return (0);
+}
+#endif	/* illumos */
+
+/*
+ * Determine if the given path is a hot spare within the given configuration.
+ */
+static boolean_t
+is_spare(nvlist_t *config, const char *path)
+{
+	int fd;
+	pool_state_t state;
+	char *name = NULL;
+	nvlist_t *label;
+	uint64_t guid, spareguid;
+	nvlist_t *nvroot;
+	nvlist_t **spares;
+	uint_t i, nspares;
+	boolean_t inuse;
+
+	if ((fd = open(path, O_RDONLY)) < 0)
+		return (B_FALSE);
+
+	if (zpool_in_use(g_zfs, fd, &state, &name, &inuse) != 0 ||
+	    !inuse ||
+	    state != POOL_STATE_SPARE ||
+	    zpool_read_label(fd, &label, NULL) != 0) {
+		free(name);
+		(void) close(fd);
+		return (B_FALSE);
+	}
+	free(name);
+	(void) close(fd);
+
+	verify(nvlist_lookup_uint64(label, ZPOOL_CONFIG_GUID, &guid) == 0);
+	nvlist_free(label);
+
+	verify(nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE,
+	    &nvroot) == 0);
+	if (nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_SPARES,
+	    &spares, &nspares) == 0) {
+		for (i = 0; i < nspares; i++) {
+			verify(nvlist_lookup_uint64(spares[i],
+			    ZPOOL_CONFIG_GUID, &spareguid) == 0);
+			if (spareguid == guid)
+				return (B_TRUE);
+		}
+	}
+
+	return (B_FALSE);
 }
 
 /*
@@ -1363,7 +1118,6 @@ is_device_in_use(nvlist_t *config, nvlist_t *nv, boolean_t force,
 	char *type, *path;
 	int ret = 0;
 	char buf[MAXPATHLEN];
-	uint64_t wholedisk = B_FALSE;
 	boolean_t anyinuse = B_FALSE;
 
 	verify(nvlist_lookup_string(nv, ZPOOL_CONFIG_TYPE, &type) == 0);
@@ -1371,31 +1125,22 @@ is_device_in_use(nvlist_t *config, nvlist_t *nv, boolean_t force,
 	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
 	    &child, &children) != 0) {
 
-		verify(!nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path));
-		if (strcmp(type, VDEV_TYPE_DISK) == 0)
-			verify(!nvlist_lookup_uint64(nv,
-			    ZPOOL_CONFIG_WHOLE_DISK, &wholedisk));
+		verify(nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path) == 0);
 
 		/*
 		 * As a generic check, we look to see if this is a replace of a
 		 * hot spare within the same pool.  If so, we allow it
-		 * regardless of what libblkid or zpool_in_use() says.
+		 * regardless of what libdiskmgt or zpool_in_use() says.
 		 */
 		if (replacing) {
-			(void) strlcpy(buf, path, sizeof (buf));
-			if (wholedisk) {
-				ret = zfs_append_partition(buf,  sizeof (buf));
-				if (ret == -1)
-					return (-1);
-			}
+				(void) strlcpy(buf, path, sizeof (buf));
 
 			if (is_spare(config, buf))
 				return (B_FALSE);
 		}
 
 		if (strcmp(type, VDEV_TYPE_DISK) == 0)
-			ret = check_device(path, force, isspare, wholedisk);
-
+			ret = check_device(path, force, isspare);
 		else if (strcmp(type, VDEV_TYPE_FILE) == 0)
 			ret = check_file(path, force, isspare);
 
@@ -1472,13 +1217,6 @@ is_grouping(const char *type, int *mindev, int *maxdev)
 		return (VDEV_TYPE_LOG);
 	}
 
-	if (strcmp(type, VDEV_ALLOC_BIAS_SPECIAL) == 0 ||
-	    strcmp(type, VDEV_ALLOC_BIAS_DEDUP) == 0) {
-		if (mindev != NULL)
-			*mindev = 1;
-		return (type);
-	}
-
 	if (strcmp(type, "cache") == 0) {
 		if (mindev != NULL)
 			*mindev = 1;
@@ -1495,12 +1233,12 @@ is_grouping(const char *type, int *mindev, int *maxdev)
  * because the program is just going to exit anyway.
  */
 nvlist_t *
-construct_spec(nvlist_t *props, int argc, char **argv)
+construct_spec(int argc, char **argv)
 {
 	nvlist_t *nvroot, *nv, **top, **spares, **l2cache;
 	int t, toplevels, mindev, maxdev, nspares, nlogs, nl2cache;
 	const char *type;
-	uint64_t is_log, is_special, is_dedup;
+	uint64_t is_log;
 	boolean_t seen_logs;
 
 	top = NULL;
@@ -1510,9 +1248,8 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 	nspares = 0;
 	nlogs = 0;
 	nl2cache = 0;
-	is_log = is_special = is_dedup = B_FALSE;
+	is_log = B_FALSE;
 	seen_logs = B_FALSE;
-	nvroot = NULL;
 
 	while (argc > 0) {
 		nv = NULL;
@@ -1531,9 +1268,9 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 					    gettext("invalid vdev "
 					    "specification: 'spare' can be "
 					    "specified only once\n"));
-					goto spec_out;
+					return (NULL);
 				}
-				is_log = is_special = is_dedup = B_FALSE;
+				is_log = B_FALSE;
 			}
 
 			if (strcmp(type, VDEV_TYPE_LOG) == 0) {
@@ -1542,12 +1279,10 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 					    gettext("invalid vdev "
 					    "specification: 'log' can be "
 					    "specified only once\n"));
-					goto spec_out;
+					return (NULL);
 				}
 				seen_logs = B_TRUE;
 				is_log = B_TRUE;
-				is_special = B_FALSE;
-				is_dedup = B_FALSE;
 				argc--;
 				argv++;
 				/*
@@ -1557,43 +1292,24 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 				continue;
 			}
 
-			if (strcmp(type, VDEV_ALLOC_BIAS_SPECIAL) == 0) {
-				is_special = B_TRUE;
-				is_log = B_FALSE;
-				is_dedup = B_FALSE;
-				argc--;
-				argv++;
-				continue;
-			}
-
-			if (strcmp(type, VDEV_ALLOC_BIAS_DEDUP) == 0) {
-				is_dedup = B_TRUE;
-				is_log = B_FALSE;
-				is_special = B_FALSE;
-				argc--;
-				argv++;
-				continue;
-			}
-
 			if (strcmp(type, VDEV_TYPE_L2CACHE) == 0) {
 				if (l2cache != NULL) {
 					(void) fprintf(stderr,
 					    gettext("invalid vdev "
 					    "specification: 'cache' can be "
 					    "specified only once\n"));
-					goto spec_out;
+					return (NULL);
 				}
-				is_log = is_special = is_dedup = B_FALSE;
+				is_log = B_FALSE;
 			}
 
-			if (is_log || is_special || is_dedup) {
+			if (is_log) {
 				if (strcmp(type, VDEV_TYPE_MIRROR) != 0) {
 					(void) fprintf(stderr,
 					    gettext("invalid vdev "
-					    "specification: unsupported '%s' "
-					    "device: %s\n"), is_log ? "log" :
-					    "special", type);
-					goto spec_out;
+					    "specification: unsupported 'log' "
+					    "device: %s\n"), type);
+					return (NULL);
 				}
 				nlogs++;
 			}
@@ -1606,14 +1322,9 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 				    children * sizeof (nvlist_t *));
 				if (child == NULL)
 					zpool_no_memory();
-				if ((nv = make_leaf_vdev(props, argv[c],
-				    B_FALSE)) == NULL) {
-					for (c = 0; c < children - 1; c++)
-						nvlist_free(child[c]);
-					free(child);
-					goto spec_out;
-				}
-
+				if ((nv = make_leaf_vdev(argv[c], B_FALSE))
+				    == NULL)
+					return (NULL);
 				child[children - 1] = nv;
 			}
 
@@ -1621,20 +1332,14 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 				(void) fprintf(stderr, gettext("invalid vdev "
 				    "specification: %s requires at least %d "
 				    "devices\n"), argv[0], mindev);
-				for (c = 0; c < children; c++)
-					nvlist_free(child[c]);
-				free(child);
-				goto spec_out;
+				return (NULL);
 			}
 
 			if (children > maxdev) {
 				(void) fprintf(stderr, gettext("invalid vdev "
 				    "specification: %s supports no more than "
 				    "%d devices\n"), argv[0], maxdev);
-				for (c = 0; c < children; c++)
-					nvlist_free(child[c]);
-				free(child);
-				goto spec_out;
+				return (NULL);
 			}
 
 			argc -= c;
@@ -1649,27 +1354,12 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 				nl2cache = children;
 				continue;
 			} else {
-				/* create a top-level vdev with children */
 				verify(nvlist_alloc(&nv, NV_UNIQUE_NAME,
 				    0) == 0);
 				verify(nvlist_add_string(nv, ZPOOL_CONFIG_TYPE,
 				    type) == 0);
 				verify(nvlist_add_uint64(nv,
 				    ZPOOL_CONFIG_IS_LOG, is_log) == 0);
-				if (is_log)
-					verify(nvlist_add_string(nv,
-					    ZPOOL_CONFIG_ALLOCATION_BIAS,
-					    VDEV_ALLOC_BIAS_LOG) == 0);
-				if (is_special) {
-					verify(nvlist_add_string(nv,
-					    ZPOOL_CONFIG_ALLOCATION_BIAS,
-					    VDEV_ALLOC_BIAS_SPECIAL) == 0);
-				}
-				if (is_dedup) {
-					verify(nvlist_add_string(nv,
-					    ZPOOL_CONFIG_ALLOCATION_BIAS,
-					    VDEV_ALLOC_BIAS_DEDUP) == 0);
-				}
 				if (strcmp(type, VDEV_TYPE_RAIDZ) == 0) {
 					verify(nvlist_add_uint64(nv,
 					    ZPOOL_CONFIG_NPARITY,
@@ -1688,22 +1378,10 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 			 * We have a device.  Pass off to make_leaf_vdev() to
 			 * construct the appropriate nvlist describing the vdev.
 			 */
-			if ((nv = make_leaf_vdev(props, argv[0],
-			    is_log)) == NULL)
-				goto spec_out;
-
+			if ((nv = make_leaf_vdev(argv[0], is_log)) == NULL)
+				return (NULL);
 			if (is_log)
 				nlogs++;
-			if (is_special) {
-				verify(nvlist_add_string(nv,
-				    ZPOOL_CONFIG_ALLOCATION_BIAS,
-				    VDEV_ALLOC_BIAS_SPECIAL) == 0);
-			}
-			if (is_dedup) {
-				verify(nvlist_add_string(nv,
-				    ZPOOL_CONFIG_ALLOCATION_BIAS,
-				    VDEV_ALLOC_BIAS_DEDUP) == 0);
-			}
 			argc--;
 			argv++;
 		}
@@ -1719,13 +1397,13 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 		(void) fprintf(stderr, gettext("invalid vdev "
 		    "specification: at least one toplevel vdev must be "
 		    "specified\n"));
-		goto spec_out;
+		return (NULL);
 	}
 
 	if (seen_logs && nlogs == 0) {
 		(void) fprintf(stderr, gettext("invalid vdev specification: "
 		    "log requires at least 1 device\n"));
-		goto spec_out;
+		return (NULL);
 	}
 
 	/*
@@ -1743,16 +1421,16 @@ construct_spec(nvlist_t *props, int argc, char **argv)
 		verify(nvlist_add_nvlist_array(nvroot, ZPOOL_CONFIG_L2CACHE,
 		    l2cache, nl2cache) == 0);
 
-spec_out:
 	for (t = 0; t < toplevels; t++)
 		nvlist_free(top[t]);
 	for (t = 0; t < nspares; t++)
 		nvlist_free(spares[t]);
 	for (t = 0; t < nl2cache; t++)
 		nvlist_free(l2cache[t]);
-
-	free(spares);
-	free(l2cache);
+	if (spares)
+		free(spares);
+	if (l2cache)
+		free(l2cache);
 	free(top);
 
 	return (nvroot);
@@ -1766,14 +1444,9 @@ split_mirror_vdev(zpool_handle_t *zhp, char *newname, nvlist_t *props,
 	uint_t c, children;
 
 	if (argc > 0) {
-		if ((newroot = construct_spec(props, argc, argv)) == NULL) {
+		if ((newroot = construct_spec(argc, argv)) == NULL) {
 			(void) fprintf(stderr, gettext("Unable to build a "
 			    "pool from the specified devices\n"));
-			return (NULL);
-		}
-
-		if (!flags.dryrun && make_disks(zhp, newroot) != 0) {
-			nvlist_free(newroot);
 			return (NULL);
 		}
 
@@ -1804,30 +1477,6 @@ split_mirror_vdev(zpool_handle_t *zhp, char *newname, nvlist_t *props,
 	return (newroot);
 }
 
-static int
-num_normal_vdevs(nvlist_t *nvroot)
-{
-	nvlist_t **top;
-	uint_t t, toplevels, normal = 0;
-
-	verify(nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
-	    &top, &toplevels) == 0);
-
-	for (t = 0; t < toplevels; t++) {
-		uint64_t log = B_FALSE;
-
-		(void) nvlist_lookup_uint64(top[t], ZPOOL_CONFIG_IS_LOG, &log);
-		if (log)
-			continue;
-		if (nvlist_exists(top[t], ZPOOL_CONFIG_ALLOCATION_BIAS))
-			continue;
-
-		normal++;
-	}
-
-	return (normal);
-}
-
 /*
  * Get and validate the contents of the given vdev specification.  This ensures
  * that the nvlist returned is well-formed, that all the devices exist, and that
@@ -1851,13 +1500,11 @@ make_root_vdev(zpool_handle_t *zhp, nvlist_t *props, int force, int check_rep,
 	 * that we have a valid specification, and that all devices can be
 	 * opened.
 	 */
-	if ((newroot = construct_spec(props, argc, argv)) == NULL)
+	if ((newroot = construct_spec(argc, argv)) == NULL)
 		return (NULL);
 
-	if (zhp && ((poolconfig = zpool_get_config(zhp, NULL)) == NULL)) {
-		nvlist_free(newroot);
+	if (zhp && ((poolconfig = zpool_get_config(zhp, NULL)) == NULL))
 		return (NULL);
-	}
 
 	/*
 	 * Validate each device to make sure that its not shared with another
@@ -1876,24 +1523,6 @@ make_root_vdev(zpool_handle_t *zhp, nvlist_t *props, int force, int check_rep,
 	 * catch changes against the existing replication level.
 	 */
 	if (check_rep && check_replication(poolconfig, newroot) != 0) {
-		nvlist_free(newroot);
-		return (NULL);
-	}
-
-	/*
-	 * On pool create the new vdev spec must have one normal vdev.
-	 */
-	if (poolconfig == NULL && num_normal_vdevs(newroot) == 0) {
-		vdev_error(gettext("at least one general top-level vdev must "
-		    "be specified\n"));
-		nvlist_free(newroot);
-		return (NULL);
-	}
-
-	/*
-	 * Run through the vdev specification and label any whole disks found.
-	 */
-	if (!dryrun && make_disks(zhp, newroot) != 0) {
 		nvlist_free(newroot);
 		return (NULL);
 	}
