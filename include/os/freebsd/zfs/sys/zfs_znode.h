@@ -25,8 +25,8 @@
  * Copyright 2016 Nexenta Systems, Inc. All rights reserved.
  */
 
-#ifndef	_SYS_FS_ZFS_ZNODE_H
-#define	_SYS_FS_ZFS_ZNODE_H
+#ifndef	_FREEBSD_SYS_FS_ZFS_ZNODE_H
+#define	_FREEBSD_SYS_FS_ZFS_ZNODE_H
 
 #ifdef _KERNEL
 #include <sys/list.h>

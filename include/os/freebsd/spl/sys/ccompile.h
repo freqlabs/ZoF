@@ -113,7 +113,7 @@ extern "C" {
 #define	__VPRINTFLIKE(__n)	__sun_attr__((__VPRINTFLIKE__(__n)))
 #define	__KPRINTFLIKE(__n)	__sun_attr__((__KPRINTFLIKE__(__n)))
 #define	__KVPRINTFLIKE(__n)	__sun_attr__((__KVPRINTFLIKE__(__n)))
-#ifdef __KERNEL
+#ifdef _KERNEL
 #define	__NORETURN		__sun_attr__((__noreturn__))
 #endif
 #define	__CONST			__sun_attr__((__const__))
@@ -123,7 +123,7 @@ extern "C" {
 #define module_param(a, b, c)
 #define module_param_named(a, b, c, d)
 #define MODULE_PARM_DESC(a, b)
-#ifdef __KERNEL
+#ifdef _KERNEL
 #include <linux/types.h>
 
 #define vmem_free zfs_kmem_free
