@@ -139,8 +139,54 @@ typedef long loff_t;
 #define __POSIX_VISIBLE 201808
 #define        ARRAY_SIZE(a) (sizeof (a) / sizeof (a[0]))
 #define fstat64 fstat
+#define open64 open
+#define pwrite64 pwrite
+#define pread64 pread	
 #define stat64 stat
+#define P2ALIGN(x, align)       ((x) & -(align))
+#define P2CROSS(x, y, align)    (((x) ^ (y)) > (align) - 1)
+#define P2ROUNDUP(x, align)     ((((x) - 1) | ((align) - 1)) + 1)
+#define P2PHASE(x, align)       ((x) & ((align) - 1))
+#define P2NPHASE(x, align)      (-(x) & ((align) - 1))
+#define ISP2(x)                 (((x) & ((x) - 1)) == 0)
+#define IS_P2ALIGNED(v, a)      ((((uintptr_t)(v)) & ((uintptr_t)(a) - 1)) == 0)
+#define P2BOUNDARY(off, len, align) \
+                                (((off) ^ ((off) + (len) - 1)) > (align) - 1)
+
+/*
+ * Typed version of the P2* macros.  These macros should be used to ensure
+ * that the result is correctly calculated based on the data type of (x),
+ * which is passed in as the last argument, regardless of the data
+ * type of the alignment.  For example, if (x) is of type uint64_t,
+ * and we want to round it up to a page boundary using "PAGESIZE" as
+ * the alignment, we can do either
+ *
+ * P2ROUNDUP(x, (uint64_t)PAGESIZE)
+ * or
+ * P2ROUNDUP_TYPED(x, PAGESIZE, uint64_t)
+ */
+#define P2ALIGN_TYPED(x, align, type)   \
+        ((type)(x) & -(type)(align))
+#define P2PHASE_TYPED(x, align, type)   \
+        ((type)(x) & ((type)(align) - 1))
+#define P2NPHASE_TYPED(x, align, type)  \
+        (-(type)(x) & ((type)(align) - 1))
+#define P2ROUNDUP_TYPED(x, align, type) \
+        ((((type)(x) - 1) | ((type)(align) - 1)) + 1)
+#define P2END_TYPED(x, align, type)     \
+        (-(~(type)(x) & -(type)(align)))
+#define P2PHASEUP_TYPED(x, align, phase, type)  \
+        ((type)(phase) - (((type)(phase) - (type)(x)) & -(type)(align)))
+#define P2CROSS_TYPED(x, y, align, type)        \
+        (((type)(x) ^ (type)(y)) > (type)(align) - 1)
+#define P2SAMEHIGHBIT_TYPED(x, y, type) \
+        (((type)(x) ^ (type)(y)) < ((type)(x) & (type)(y)))
+
 #define    DIV_ROUND_UP(n, d)      (((n) + (d) - 1) / (d))
+#define RLIM64_INFINITY RLIM_INFINITY
+#define ERESTART EAGAIN
+#define    ABS(a)          ((a) < 0 ? -(a) : (a))
+
 #endif
 #ifdef	__cplusplus
 }

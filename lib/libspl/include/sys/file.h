@@ -38,7 +38,11 @@
 
 #define	FCREAT	O_CREAT
 #define	FTRUNC	O_TRUNC
+#ifdef __linux__
 #define	FOFFMAX	O_LARGEFILE
+#else
+#define	FOFFMAX	0
+#endif
 #define	FSYNC	O_SYNC
 #define	FDSYNC	O_DSYNC
 #define	FRSYNC	O_RSYNC
