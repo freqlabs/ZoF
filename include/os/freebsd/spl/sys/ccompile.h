@@ -133,7 +133,11 @@ extern "C" {
 #else
 typedef unsigned int uint_t;
 typedef long loff_t;
-	typedef long rlim64_t;	
+typedef long rlim64_t;	
+typedef int bool_t;
+typedef int enum_t;
+#define FALSE 0
+#define TRUE 1
 #define __XSI_VISIBLE 1000
 #define __BSD_VISIBLE 1
 #define __POSIX_VISIBLE 201808
