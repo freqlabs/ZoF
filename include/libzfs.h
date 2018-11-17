@@ -226,10 +226,8 @@ extern int zfs_standard_error(libzfs_handle_t *, int, const char *);
 extern void libzfs_mnttab_init(libzfs_handle_t *);
 extern void libzfs_mnttab_fini(libzfs_handle_t *);
 extern void libzfs_mnttab_cache(libzfs_handle_t *, boolean_t);
-#ifdef __linux	
 extern int libzfs_mnttab_find(libzfs_handle_t *, const char *,
     struct mnttab *);
-#endif
 extern void libzfs_mnttab_add(libzfs_handle_t *, const char *,
     const char *, const char *);
 extern void libzfs_mnttab_remove(libzfs_handle_t *, const char *);

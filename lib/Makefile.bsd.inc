@@ -25,7 +25,9 @@ all: $(LIB).so
 
 $(LIB).so: $(objs)
 	$(CC) $(LDFLAGS) -o $(LIB).so.full -Wl,-soname,$(LIB).so $(objs) 
-
+	objcopy --only-keep-debug $(LIB).so.full $(LIB).so.debug
+	objcopy --strip-debug --add-gnu-debuglink=$(LIB).so.debug  $(LIB).so.full $(LIB).so
 
 clean:
-	 rm -f *.o *~
+	 rm -f *.o *~ *.so
+

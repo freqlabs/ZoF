@@ -138,15 +138,26 @@ typedef int bool_t;
 typedef int enum_t;
 #define FALSE 0
 #define TRUE 1
+	/*
+	 * XXX
+	 */
+#define ENOSTR ENOTCONN
+#define ENODATA EINVAL
+
+
 #define __XSI_VISIBLE 1000
 #define __BSD_VISIBLE 1
 #define __POSIX_VISIBLE 201808
 #define        ARRAY_SIZE(a) (sizeof (a) / sizeof (a[0]))
+#define O_LARGEFILE 0
 #define fstat64 fstat
 #define open64 open
 #define pwrite64 pwrite
 #define pread64 pread	
 #define stat64 stat
+#define statfs64 statfs
+#define readdir64 readdir
+#define dirent64 dirent
 #define P2ALIGN(x, align)       ((x) & -(align))
 #define P2CROSS(x, y, align)    (((x) ^ (y)) > (align) - 1)
 #define P2ROUNDUP(x, align)     ((((x) - 1) | ((align) - 1)) + 1)
