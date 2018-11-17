@@ -9,10 +9,16 @@ CFLAGS+= -I$(ZFSBASE)/include
 #CFLAGS+= -I$(ZFSBASE)/include/os/linux/spl
 CFLAGS+= -DTEXT_DOMAIN=\"zfs-linux-user\"
 
-LDFLAGS= -lm
+LDFLAGS+= -lm
 
 $(objs): %.o: %.c
 	 $(CC) -c $(CFLAGS) $< -o $@
+
+$(PROG): $(objs)
+	$(CC) $(LDFLAGS) $(objs) -o $(PROG)
+
+all: $(PROG)
+
 
 clean:
 	 rm -f *.o *~

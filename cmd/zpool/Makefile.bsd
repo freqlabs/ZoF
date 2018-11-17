@@ -11,10 +11,10 @@ objs = \
 	zpool_util.o \
 	freebsd_zpool_vdev.o
 
-all: zpool
+PROG=zpool
 
 CFLAGS+= -Wno-absolute-value
+LDFLAGS+= -L. -lzpool -luutil -ltpool -lnvpair
 include $(ZFSBASE)/cmd/Makefile.bsd.inc
 
-zpool: $(objs)
-	$(CC) $(LDFLAGS) $(objs) -o zpool
+
