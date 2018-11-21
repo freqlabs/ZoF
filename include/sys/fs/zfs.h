@@ -1098,7 +1098,11 @@ typedef enum zfs_ioc {
 	/*
 	 * Illumos - 71/128 numbers reserved.
 	 */
+#ifdef __FreeBSD__
+	ZFS_IOC_FIRST =	0,
+#else
 	ZFS_IOC_FIRST =	('Z' << 8),
+#endif
 	ZFS_IOC = ZFS_IOC_FIRST,
 	ZFS_IOC_POOL_CREATE = ZFS_IOC_FIRST,	/* 0x5a00 */
 	ZFS_IOC_POOL_DESTROY,			/* 0x5a01 */

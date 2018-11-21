@@ -23,8 +23,8 @@ $(objs): %.o: %.c
 all: $(LIB).so
 
 
-$(LIB).so: $(objs)
-	$(CC) $(LDFLAGS) -o $(LIB).so.full -Wl,-soname,$(LIB).so $(objs) 
+$(LIB).so: $(objs) $(asm_objs)
+	$(CC) $(LDFLAGS) -o $(LIB).so.full -Wl,-soname,$(LIB).so $(objs) $(asm_objs)
 	objcopy --only-keep-debug $(LIB).so.full $(LIB).so.debug
 	objcopy --strip-debug --add-gnu-debuglink=$(LIB).so.debug  $(LIB).so.full $(LIB).so
 

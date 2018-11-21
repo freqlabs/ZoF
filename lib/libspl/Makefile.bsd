@@ -44,7 +44,11 @@ EXTRA_DIST = $(USER_C)
 
 LIB=libspl
 
+atomic.o: asm-x86_64/atomic.S
+	  $(CC) -c asm-x86_64/atomic.S
 objs := $(patsubst %.c,%.o, $(nodist_libspl_la_SOURCES))
+asm_objs := atomic.o
+
 LDFLAGS+= -lthr -lmd -lz
 
 include $(ZFSBASE)/lib/Makefile.bsd.inc

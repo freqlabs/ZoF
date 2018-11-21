@@ -14,7 +14,7 @@ objs = \
 PROG=zpool
 
 CFLAGS+= -Wno-absolute-value
-LDFLAGS+= -L. -lzpool -luutil -ltpool -lnvpair
+LDFLAGS+= -L. -lzpool -luutil -ltpool -lnvpair -lzfs -L/usr/local/lib -lintl -lspl -lgeom -lzfs_core -lavl
 include $(ZFSBASE)/cmd/Makefile.bsd.inc
 
 

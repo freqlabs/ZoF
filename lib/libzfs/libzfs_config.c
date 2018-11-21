@@ -49,6 +49,9 @@
 #include <libuutil.h>
 
 #include "libzfs_impl.h"
+#ifdef __FreeBSD__
+#include "libzfs_compat.h"
+#endif
 
 typedef struct config_node {
 	char		*cn_name;
