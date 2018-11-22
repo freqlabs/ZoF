@@ -46,242 +46,9 @@
 void
 zfs_cmd_compat_get(zfs_cmd_t *zc, caddr_t addr, const int cflag)
 {
-	zfs_cmd_zcmd_t *zcmd_c;
-	zfs_cmd_edbp_t *edbp_c;
-	zfs_cmd_resume_t *resume_c;
-	zfs_cmd_inlanes_t *inlanes_c;
 
-	switch (cflag) {
-	case ZFS_CMD_COMPAT_INLANES:
-		inlanes_c = (void *)addr;
-		/* zc */
-		strlcpy(zc->zc_name, inlanes_c->zc_name, MAXPATHLEN);
-		strlcpy(zc->zc_value, inlanes_c->zc_value, MAXPATHLEN * 2);
-		strlcpy(zc->zc_string, inlanes_c->zc_string, MAXPATHLEN);
-
-#define FIELD_COPY(field) zc->field = inlanes_c->field
-		FIELD_COPY(zc_nvlist_src);
-		FIELD_COPY(zc_nvlist_src_size);
-		FIELD_COPY(zc_nvlist_dst);
-		FIELD_COPY(zc_nvlist_dst_size);
-		FIELD_COPY(zc_nvlist_dst_filled);
-		FIELD_COPY(zc_pad2);
-		FIELD_COPY(zc_history);
-		FIELD_COPY(zc_guid);
-		FIELD_COPY(zc_nvlist_conf);
-		FIELD_COPY(zc_nvlist_conf_size);
-		FIELD_COPY(zc_cookie);
-		FIELD_COPY(zc_objset_type);
-		FIELD_COPY(zc_perm_action);
-		FIELD_COPY(zc_history_len);
-		FIELD_COPY(zc_history_offset);
-		FIELD_COPY(zc_obj);
-		FIELD_COPY(zc_iflags);
-		FIELD_COPY(zc_share);
-		FIELD_COPY(zc_jailid);
-		FIELD_COPY(zc_objset_stats);
-		//FIELD_COPY(zc_begin_record);
-		FIELD_COPY(zc_inject_record);
-		FIELD_COPY(zc_defer_destroy);
-		FIELD_COPY(zc_flags);
-		FIELD_COPY(zc_action_handle);
-		FIELD_COPY(zc_cleanup_fd);
-		FIELD_COPY(zc_simple);
-		FIELD_COPY(zc_resumable);
-		FIELD_COPY(zc_sendobj);
-		FIELD_COPY(zc_fromobj);
-		FIELD_COPY(zc_createtxg);
-		FIELD_COPY(zc_stat);
-#undef FIELD_COPY
-		break;
-
-	case ZFS_CMD_COMPAT_RESUME:
-		resume_c = (void *)addr;
-		/* zc */
-		strlcpy(zc->zc_name, resume_c->zc_name, MAXPATHLEN);
-		strlcpy(zc->zc_value, resume_c->zc_value, MAXPATHLEN * 2);
-		strlcpy(zc->zc_string, resume_c->zc_string, MAXPATHLEN);
-
-#define FIELD_COPY(field) zc->field = resume_c->field
-		FIELD_COPY(zc_nvlist_src);
-		FIELD_COPY(zc_nvlist_src_size);
-		FIELD_COPY(zc_nvlist_dst);
-		FIELD_COPY(zc_nvlist_dst_size);
-		FIELD_COPY(zc_nvlist_dst_filled);
-		FIELD_COPY(zc_pad2);
-		FIELD_COPY(zc_history);
-		FIELD_COPY(zc_guid);
-		FIELD_COPY(zc_nvlist_conf);
-		FIELD_COPY(zc_nvlist_conf_size);
-		FIELD_COPY(zc_cookie);
-		FIELD_COPY(zc_objset_type);
-		FIELD_COPY(zc_perm_action);
-		FIELD_COPY(zc_history_len);
-		FIELD_COPY(zc_history_offset);
-		FIELD_COPY(zc_obj);
-		FIELD_COPY(zc_iflags);
-		FIELD_COPY(zc_share);
-		FIELD_COPY(zc_jailid);
-		FIELD_COPY(zc_objset_stats);
-		//FIELD_COPY(zc_begin_record);
-		FIELD_COPY(zc_inject_record.zi_objset);
-		FIELD_COPY(zc_inject_record.zi_object);
-		FIELD_COPY(zc_inject_record.zi_start);
-		FIELD_COPY(zc_inject_record.zi_end);
-		FIELD_COPY(zc_inject_record.zi_guid);
-		FIELD_COPY(zc_inject_record.zi_level);
-		FIELD_COPY(zc_inject_record.zi_error);
-		FIELD_COPY(zc_inject_record.zi_type);
-		FIELD_COPY(zc_inject_record.zi_freq);
-		FIELD_COPY(zc_inject_record.zi_failfast);
-		strlcpy(zc->zc_inject_record.zi_func,
-		    resume_c->zc_inject_record.zi_func, MAXNAMELEN);
-		FIELD_COPY(zc_inject_record.zi_iotype);
-		FIELD_COPY(zc_inject_record.zi_duration);
-		FIELD_COPY(zc_inject_record.zi_timer);
-		zc->zc_inject_record.zi_nlanes = 1;
-		FIELD_COPY(zc_inject_record.zi_cmd);
-		FIELD_COPY(zc_inject_record.zi_pad);
-		FIELD_COPY(zc_defer_destroy);
-		FIELD_COPY(zc_flags);
-		FIELD_COPY(zc_action_handle);
-		FIELD_COPY(zc_cleanup_fd);
-		FIELD_COPY(zc_simple);
-		FIELD_COPY(zc_resumable);
-		FIELD_COPY(zc_sendobj);
-		FIELD_COPY(zc_fromobj);
-		FIELD_COPY(zc_createtxg);
-		FIELD_COPY(zc_stat);
-#undef FIELD_COPY
-		break;
-
-	case ZFS_CMD_COMPAT_EDBP:
-		edbp_c = (void *)addr;
-		/* zc */
-		strlcpy(zc->zc_name, edbp_c->zc_name, MAXPATHLEN);
-		strlcpy(zc->zc_value, edbp_c->zc_value, MAXPATHLEN * 2);
-		strlcpy(zc->zc_string, edbp_c->zc_string, MAXPATHLEN);
-
-#define FIELD_COPY(field) zc->field = edbp_c->field
-		FIELD_COPY(zc_nvlist_src);
-		FIELD_COPY(zc_nvlist_src_size);
-		FIELD_COPY(zc_nvlist_dst);
-		FIELD_COPY(zc_nvlist_dst_size);
-		FIELD_COPY(zc_nvlist_dst_filled);
-		FIELD_COPY(zc_pad2);
-		FIELD_COPY(zc_history);
-		FIELD_COPY(zc_guid);
-		FIELD_COPY(zc_nvlist_conf);
-		FIELD_COPY(zc_nvlist_conf_size);
-		FIELD_COPY(zc_cookie);
-		FIELD_COPY(zc_objset_type);
-		FIELD_COPY(zc_perm_action);
-		FIELD_COPY(zc_history_len);
-		FIELD_COPY(zc_history_offset);
-		FIELD_COPY(zc_obj);
-		FIELD_COPY(zc_iflags);
-		FIELD_COPY(zc_share);
-		FIELD_COPY(zc_jailid);
-		FIELD_COPY(zc_objset_stats);
-		//zc->zc_begin_record.drr_u.drr_begin = edbp_c->zc_begin_record;
-		FIELD_COPY(zc_inject_record.zi_objset);
-		FIELD_COPY(zc_inject_record.zi_object);
-		FIELD_COPY(zc_inject_record.zi_start);
-		FIELD_COPY(zc_inject_record.zi_end);
-		FIELD_COPY(zc_inject_record.zi_guid);
-		FIELD_COPY(zc_inject_record.zi_level);
-		FIELD_COPY(zc_inject_record.zi_error);
-		FIELD_COPY(zc_inject_record.zi_type);
-		FIELD_COPY(zc_inject_record.zi_freq);
-		FIELD_COPY(zc_inject_record.zi_failfast);
-		strlcpy(zc->zc_inject_record.zi_func,
-		    edbp_c->zc_inject_record.zi_func, MAXNAMELEN);
-		FIELD_COPY(zc_inject_record.zi_iotype);
-		FIELD_COPY(zc_inject_record.zi_duration);
-		FIELD_COPY(zc_inject_record.zi_timer);
-		zc->zc_inject_record.zi_nlanes = 1;
-		FIELD_COPY(zc_inject_record.zi_cmd);
-		FIELD_COPY(zc_inject_record.zi_pad);
-		FIELD_COPY(zc_defer_destroy);
-		FIELD_COPY(zc_flags);
-		FIELD_COPY(zc_action_handle);
-		FIELD_COPY(zc_cleanup_fd);
-		FIELD_COPY(zc_simple);
-		zc->zc_resumable = B_FALSE;
-		FIELD_COPY(zc_sendobj);
-		FIELD_COPY(zc_fromobj);
-		FIELD_COPY(zc_createtxg);
-		FIELD_COPY(zc_stat);
-#undef FIELD_COPY
-		break;
-
-	case ZFS_CMD_COMPAT_ZCMD:
-		zcmd_c = (void *)addr;
-		/* zc */
-		strlcpy(zc->zc_name, zcmd_c->zc_name, MAXPATHLEN);
-		strlcpy(zc->zc_value, zcmd_c->zc_value, MAXPATHLEN * 2);
-		strlcpy(zc->zc_string, zcmd_c->zc_string, MAXPATHLEN);
-
-#define FIELD_COPY(field) zc->field = zcmd_c->field
-		FIELD_COPY(zc_nvlist_src);
-		FIELD_COPY(zc_nvlist_src_size);
-		FIELD_COPY(zc_nvlist_dst);
-		FIELD_COPY(zc_nvlist_dst_size);
-		FIELD_COPY(zc_nvlist_dst_filled);
-		FIELD_COPY(zc_pad2);
-		FIELD_COPY(zc_history);
-		FIELD_COPY(zc_guid);
-		FIELD_COPY(zc_nvlist_conf);
-		FIELD_COPY(zc_nvlist_conf_size);
-		FIELD_COPY(zc_cookie);
-		FIELD_COPY(zc_objset_type);
-		FIELD_COPY(zc_perm_action);
-		FIELD_COPY(zc_history_len);
-		FIELD_COPY(zc_history_offset);
-		FIELD_COPY(zc_obj);
-		FIELD_COPY(zc_iflags);
-		FIELD_COPY(zc_share);
-		FIELD_COPY(zc_jailid);
-		FIELD_COPY(zc_objset_stats);
-		//zc->zc_begin_record.drr_u.drr_begin = zcmd_c->zc_begin_record;
-		FIELD_COPY(zc_inject_record.zi_objset);
-		FIELD_COPY(zc_inject_record.zi_object);
-		FIELD_COPY(zc_inject_record.zi_start);
-		FIELD_COPY(zc_inject_record.zi_end);
-		FIELD_COPY(zc_inject_record.zi_guid);
-		FIELD_COPY(zc_inject_record.zi_level);
-		FIELD_COPY(zc_inject_record.zi_error);
-		FIELD_COPY(zc_inject_record.zi_type);
-		FIELD_COPY(zc_inject_record.zi_freq);
-		FIELD_COPY(zc_inject_record.zi_failfast);
-		strlcpy(zc->zc_inject_record.zi_func,
-		    zcmd_c->zc_inject_record.zi_func, MAXNAMELEN);
-		FIELD_COPY(zc_inject_record.zi_iotype);
-		FIELD_COPY(zc_inject_record.zi_duration);
-		FIELD_COPY(zc_inject_record.zi_timer);
-		zc->zc_inject_record.zi_nlanes = 1;
-		FIELD_COPY(zc_inject_record.zi_cmd);
-		FIELD_COPY(zc_inject_record.zi_pad);
-
-		/* boolean_t -> uint32_t */
-		zc->zc_defer_destroy = (uint32_t)(zcmd_c->zc_defer_destroy);
-		zc->zc_flags = 0;
-
-		FIELD_COPY(zc_action_handle);
-		FIELD_COPY(zc_cleanup_fd);
-		FIELD_COPY(zc_simple);
-		zc->zc_resumable = B_FALSE;
-		FIELD_COPY(zc_sendobj);
-		FIELD_COPY(zc_fromobj);
-		FIELD_COPY(zc_createtxg);
-		FIELD_COPY(zc_stat);
-#undef FIELD_COPY
-
-		break;
-
-	}
 }
-
+#if 0
 static int
 zfs_ioctl_compat_get_nvlist(uint64_t nvl, size_t size, int iflag,
     nvlist_t **nvp)
@@ -389,6 +156,7 @@ zfs_ioctl_compat_fix_stats_nvlist(nvlist_t *nvl)
 	}
 }
 
+
 static int
 zfs_ioctl_compat_fix_stats(zfs_cmd_t *zc, const int nc)
 {
@@ -427,17 +195,6 @@ zfs_ioctl_compat_pool_get_props(zfs_cmd_t *zc)
 	    zc->zc_nvlist_dst_size, zc->zc_iflags, &nv)) != 0)
 		return (error);
 
-#ifdef _KERNEL
-	if (nvlist_lookup_nvlist(nv, "allocated", &nva) == 0) {
-		nvlist_add_nvlist(nv, "used", nva);
-		nvlist_remove(nv, "allocated", DATA_TYPE_NVLIST);
-	}
-
-	if (nvlist_lookup_nvlist(nv, "free", &nva) == 0) {
-		nvlist_add_nvlist(nv, "available", nva);
-		nvlist_remove(nv, "free", DATA_TYPE_NVLIST);
-	}
-#else
 	if (nvlist_lookup_nvlist(nv, "used", &nva) == 0) {
 		nvlist_add_nvlist(nv, "allocated", nva);
 		nvlist_remove(nv, "used", DATA_TYPE_NVLIST);
@@ -447,7 +204,6 @@ zfs_ioctl_compat_pool_get_props(zfs_cmd_t *zc)
 		nvlist_add_nvlist(nv, "free", nva);
 		nvlist_remove(nv, "available", DATA_TYPE_NVLIST);
 	}
-#endif
 
 	error = zfs_ioctl_compat_put_nvlist(zc, nv);
 
@@ -455,91 +211,32 @@ zfs_ioctl_compat_pool_get_props(zfs_cmd_t *zc)
 
 	return (error);
 }
+#endif
 
 #ifndef _KERNEL
 int
 zcmd_ioctl_compat(int fd, int request, zfs_cmd_t *zc, const int cflag)
 {
-	int nc, ret;
+	int ret;
 	void *zc_c;
 	unsigned long ncmd;
 	zfs_iocparm_t zp;
 
 	switch (cflag) {
 	case ZFS_CMD_COMPAT_NONE:
-		ncmd = _IOWR('Z', request, struct zfs_cmd);
+		ncmd = _IOWR('Z', request, zfs_iocparm_t);
 		zp.zfs_cmd = (uint64_t)zc;
 		zp.zfs_cmd_size = sizeof(zfs_cmd_t);
 		zp.zfs_ioctl_version = ZFS_IOCVER_CURRENT;
 		return (ioctl(fd, ncmd, &zp));
-	case ZFS_CMD_COMPAT_INLANES:
-		ncmd = _IOWR('Z', request, struct zfs_iocparm);
-		zp.zfs_cmd = (uint64_t)zc;
-		zp.zfs_cmd_size = sizeof(zfs_cmd_inlanes_t);
-		zp.zfs_ioctl_version = ZFS_IOCVER_INLANES;
-		return (ioctl(fd, ncmd, &zp));
-	case ZFS_CMD_COMPAT_RESUME:
-		ncmd = _IOWR('Z', request, struct zfs_iocparm);
-		zp.zfs_cmd = (uint64_t)zc;
-		zp.zfs_cmd_size = sizeof(zfs_cmd_resume_t);
-		zp.zfs_ioctl_version = ZFS_IOCVER_RESUME;
-		return (ioctl(fd, ncmd, &zp));
-	case ZFS_CMD_COMPAT_EDBP:
-		ncmd = _IOWR('Z', request, struct zfs_iocparm);
-		zp.zfs_cmd = (uint64_t)zc;
-		zp.zfs_cmd_size = sizeof(zfs_cmd_edbp_t);
-		zp.zfs_ioctl_version = ZFS_IOCVER_EDBP;
-		return (ioctl(fd, ncmd, &zp));
-	case ZFS_CMD_COMPAT_ZCMD:
-		ncmd = _IOWR('Z', request, struct zfs_iocparm);
-		zp.zfs_cmd = (uint64_t)zc;
-		zp.zfs_cmd_size = sizeof(zfs_cmd_zcmd_t);
-		zp.zfs_ioctl_version = ZFS_IOCVER_ZCMD;
-		return (ioctl(fd, ncmd, &zp));
-	case ZFS_CMD_COMPAT_LZC:
-		ncmd = _IOWR('Z', request, struct zfs_cmd);
-		return (ioctl(fd, ncmd, zc));
-	case ZFS_CMD_COMPAT_DEADMAN:
-		zc_c = malloc(sizeof(zfs_cmd_deadman_t));
-		ncmd = _IOWR('Z', request, struct zfs_cmd_deadman);
-		break;
-	case ZFS_CMD_COMPAT_V28:
-		zc_c = malloc(sizeof(zfs_cmd_v28_t));
-		ncmd = _IOWR('Z', request, struct zfs_cmd_v28);
-		break;
-	case ZFS_CMD_COMPAT_V15:
-		nc = zfs_ioctl_v28_to_v15[request];
-		zc_c = malloc(sizeof(zfs_cmd_v15_t));
-		ncmd = _IOWR('Z', nc, struct zfs_cmd_v15);
-		break;
 	default:
+		abort();
 		return (EINVAL);
 	}
 
-	if (ZFS_IOCREQ(ncmd) == ZFS_IOC_COMPAT_FAIL)
-		return (ENOTSUP);
-
 	ret = ioctl(fd, ncmd, zc_c);
-	if (cflag == ZFS_CMD_COMPAT_V15 &&
-	    nc == ZFS_IOC_POOL_IMPORT)
-		ret = ioctl(fd, _IOWR('Z', ZFS_IOC_POOL_CONFIGS,
-		    struct zfs_cmd_v15), zc_c);
 	zfs_cmd_compat_get(zc, (caddr_t)zc_c, cflag);
 	free(zc_c);
-
-	if (cflag == ZFS_CMD_COMPAT_V15) {
-		switch (nc) {
-		case ZFS_IOC_POOL_IMPORT:
-		case ZFS_IOC_POOL_CONFIGS:
-		case ZFS_IOC_POOL_STATS:
-		case ZFS_IOC_POOL_TRYIMPORT:
-			zfs_ioctl_compat_fix_stats(zc, nc);
-			break;
-		case 41: /* ZFS_IOC_POOL_GET_PROPS (v15) */
-			zfs_ioctl_compat_pool_get_props(zc);
-			break;
-		}
-	}
 
 	return (ret);
 }

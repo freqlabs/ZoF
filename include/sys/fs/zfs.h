@@ -1200,6 +1200,12 @@ typedef enum zfs_ioc {
 	ZFS_IOC_LAST
 } zfs_ioc_t;
 
+typedef struct zfs_iocparm {
+	uint32_t	zfs_ioctl_version;
+	uint64_t	zfs_cmd;
+	uint64_t	zfs_cmd_size;
+} zfs_iocparm_t;
+
 /*
  * zvol ioctl to get dataset name
  */

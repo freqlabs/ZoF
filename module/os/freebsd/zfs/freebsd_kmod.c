@@ -107,13 +107,20 @@ zfsdev_ioctl(struct cdev *dev, u_long zcmd, caddr_t arg, int flag,
     struct thread *td)
 {
 	uint_t len, vecnum;
+	zfs_iocparm_t *zp;
 	int rc;
 
 	len = IOCPARM_LEN(zcmd);
 	vecnum = zcmd & 0xff;
-	if (len != sizeof(zfs_cmd_t))
+	zp = (void *)arg;
+	if (len != sizeof(zfs_iocparm_t)) {
+		printf("len %d vecnum: %d sizeof(zfs_cmd_t) %lu\n",
+			   len, vecnum, sizeof(zfs_cmd_t));
 		return (EINVAL);
-	rc = zfsdev_ioctl_common(vecnum, (unsigned long) arg);
+	}
+	if (bootverbose)
+		printf("%s vecnum: %d\n", __func__, vecnum);
+	rc = zfsdev_ioctl_common(vecnum, (unsigned long) zp->zfs_cmd);
 	return (-rc);
 }
 

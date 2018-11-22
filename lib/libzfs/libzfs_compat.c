@@ -69,47 +69,7 @@ zcmd_ioctl(int fd, int request, zfs_cmd_t *zc)
 {
 	size_t oldsize;
 	int ret, cflag = ZFS_CMD_COMPAT_NONE;
-#if 0
-	if (zfs_ioctl_version == ZFS_IOCVER_UNDEF)
-		zfs_ioctl_version = get_zfs_ioctl_version();
 
-	if (zfs_ioctl_version >= ZFS_IOCVER_DEADMAN) {
-		switch (zfs_ioctl_version) {
-		case ZFS_IOCVER_INLANES:
-			cflag = ZFS_CMD_COMPAT_INLANES;
-			break;
-		case ZFS_IOCVER_RESUME:
-			cflag = ZFS_CMD_COMPAT_RESUME;
-			break;
-		case ZFS_IOCVER_EDBP:
-			cflag = ZFS_CMD_COMPAT_EDBP;
-			break;
-		case ZFS_IOCVER_ZCMD:
-			cflag = ZFS_CMD_COMPAT_ZCMD;
-			break;
-		case ZFS_IOCVER_LZC:
-			cflag = ZFS_CMD_COMPAT_LZC;
-			break;
-		case ZFS_IOCVER_DEADMAN:
-			cflag = ZFS_CMD_COMPAT_DEADMAN;
-			break;
-		}
-	} else {
-		/*
-		 * If vfs.zfs.version.ioctl is not defined, assume we have v28
-		 * compatible binaries and use vfs.zfs.version.spa to test for v15
-		 */
-		cflag = ZFS_CMD_COMPAT_V28;
-
-		if (zfs_spa_version < 0)
-			zfs_spa_version = get_zfs_spa_version();
-
-		if (zfs_spa_version == SPA_VERSION_15 ||
-		    zfs_spa_version == SPA_VERSION_14 ||
-		    zfs_spa_version == SPA_VERSION_13)
-			cflag = ZFS_CMD_COMPAT_V15;
-	}
-#endif
 	oldsize = zc->zc_nvlist_dst_size;
 	ret = zcmd_ioctl_compat(fd, request, zc, cflag);
 
