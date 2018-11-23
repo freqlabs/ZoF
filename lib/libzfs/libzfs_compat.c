@@ -23,7 +23,7 @@
  * Copyright (c) 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
-#include "libzfs_compat.h"
+#include <libzfs_compat.h>
 #include <sys/sysctl.h>
 
 int zfs_ioctl_version = ZFS_IOCVER_UNDEF;

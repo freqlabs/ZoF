@@ -198,6 +198,7 @@ libzpool_la_LIBADD += $(ZLIB) -ldl
 libzpool_la_LDFLAGS = -pthread -version-info 2:0:0
 
 EXTRA_DIST = $(USER_C)
+CFLAGS+= -DLIB_ZPOOL_BUILD
 #vpath %.c $(VPATH)
 
 

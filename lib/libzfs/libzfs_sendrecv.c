@@ -2303,7 +2303,7 @@ recv_rename_impl(zfs_handle_t *zhp, zfs_cmd_t *zc)
 	 * attempted to rename the dataset outside of its encryption root.
 	 * Force the dataset to become an encryption root and try again.
 	 */
-	err = ioctl(zhp->zfs_hdl->libzfs_fd, ZFS_IOC_RENAME, &zc);
+	err = ioctl(zhp->zfs_hdl->libzfs_fd, ZFS_IOC_RENAME, zc);
 	if (err == EACCES) {
 		ozhp = recv_open_grand_origin(zhp);
 		if (ozhp == NULL) {
@@ -2316,7 +2316,7 @@ recv_rename_impl(zfs_handle_t *zhp, zfs_cmd_t *zc)
 		if (err != 0)
 			goto out;
 
-		err = ioctl(zhp->zfs_hdl->libzfs_fd, ZFS_IOC_RENAME, &zc);
+		err = ioctl(zhp->zfs_hdl->libzfs_fd, ZFS_IOC_RENAME, zc);
 	}
 
 out:

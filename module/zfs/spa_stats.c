@@ -686,6 +686,11 @@ spa_io_history_init(spa_t *spa)
 	char *name;
 	kstat_t *ksp;
 
+#ifdef __FreeBSD__
+	printf("XXX FIXME %s\n", __func__);
+	return;
+#endif
+
 	mutex_init(&ssh->lock, NULL, MUTEX_DEFAULT, NULL);
 
 	name = kmem_asprintf("zfs/%s", spa_name(spa));
@@ -1060,6 +1065,10 @@ spa_health_destroy(spa_t *spa)
 void
 spa_stats_init(spa_t *spa)
 {
+#ifdef __FreeBSD__
+	printf("XXX FIXME %s\n", __func__);
+	return;
+#endif
 	spa_read_history_init(spa);
 	spa_txg_history_init(spa);
 	spa_tx_assign_init(spa);
@@ -1071,6 +1080,10 @@ spa_stats_init(spa_t *spa)
 void
 spa_stats_destroy(spa_t *spa)
 {
+#ifdef __FreeBSD__
+	printf("XXX FIXME %s\n", __func__);
+	return;
+#endif
 	spa_health_destroy(spa);
 	spa_tx_assign_destroy(spa);
 	spa_txg_history_destroy(spa);

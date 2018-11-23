@@ -150,7 +150,6 @@ typedef int enum_t;
 #define __POSIX_VISIBLE 201808
 #define        ARRAY_SIZE(a) (sizeof (a) / sizeof (a[0]))
 #define O_LARGEFILE 0
-#define fstat64 fstat
 #define open64 open
 #define pwrite64 pwrite
 #define pread64 pread	

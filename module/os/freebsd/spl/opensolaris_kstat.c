@@ -61,15 +61,17 @@ kstat_default_update(kstat_t *ksp, int rw)
 }
 
 kstat_t *
-__kstat_create(const char *module, int instance, const char *name, const char *class, uchar_t type,
+__kstat_create(const char *module, int instance, const char *name, const char *class, uchar_t ks_type,
     uint_t ks_ndata, uchar_t flags)
 {
 	struct sysctl_oid *root;
 	kstat_t *ksp;
 
 	KASSERT(instance == 0, ("instance=%d", instance));
-	KASSERT(flags == KSTAT_FLAG_VIRTUAL, ("flags=%02hhx", flags));
+	if ((ks_type == KSTAT_TYPE_INTR) || (ks_type == KSTAT_TYPE_IO))
+		ASSERT(ks_ndata == 1);
 
+	
 	/*
 	 * Allocate the main structure. We don't need to copy module/class/name
 	 * stuff in here, because it is only used for sysctl node creation
@@ -82,7 +84,7 @@ __kstat_create(const char *module, int instance, const char *name, const char *c
 	ksp->ks_instance = instance;
 	strncpy(ksp->ks_name, name, KSTAT_STRLEN);
 	strncpy(ksp->ks_class, class, KSTAT_STRLEN);
-	ksp->ks_type = type;
+	ksp->ks_type = ks_type;
 	ksp->ks_flags = flags;
 	ksp->ks_update = kstat_default_update;
 
@@ -179,6 +181,10 @@ kstat_install(kstat_t *ksp)
 	if (ksp->ks_ndata == UINT32_MAX) {
 		printf("can't handle raw ops yet!!!\n");
 		return;
+	}
+	if (ksent == NULL) {
+		printf("%s ksp->ks_data == NULL!!!!\n", __func__);
+		return;		
 	}
 	typelast = 0;
 	namelast = NULL;
