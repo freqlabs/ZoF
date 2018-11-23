@@ -238,7 +238,7 @@ extern void zfs_fini(void);
 
 uint_t zfs_fsyncer_key;
 extern uint_t rrw_tsd_key;
-static uint_t zfs_allow_log_key;
+uint_t zfs_allow_log_key;
 
 typedef int zfs_ioc_legacy_func_t(zfs_cmd_t *);
 typedef int zfs_ioc_func_t(const char *, nvlist_t *, nvlist_t *);

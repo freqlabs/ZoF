@@ -56,6 +56,8 @@
 #include <sys/vdev_removal.h>
 #include <sys/dsl_crypt.h>
 
+#include <zfs_ioctl_compat.h>
+
 #include "zfs_namecheck.h"
 #include "zfs_prop.h"
 #include "zfs_deleg.h"
@@ -73,7 +75,7 @@ extern void zfs_ioctl_init(void);
 static struct root_hold_token *zfs_root_token;
 
 extern uint_t rrw_tsd_key;
-static uint_t zfs_allow_log_key;
+extern uint_t zfs_allow_log_key;
 extern uint_t zfs_geom_probe_vdev_key;
 
 static int zfs__init(void);

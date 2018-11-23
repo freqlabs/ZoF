@@ -71,7 +71,6 @@ __kstat_create(const char *module, int instance, const char *name, const char *c
 	if ((ks_type == KSTAT_TYPE_INTR) || (ks_type == KSTAT_TYPE_IO))
 		ASSERT(ks_ndata == 1);
 
-	
 	/*
 	 * Allocate the main structure. We don't need to copy module/class/name
 	 * stuff in here, because it is only used for sysctl node creation
