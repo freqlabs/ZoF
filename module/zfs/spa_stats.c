@@ -155,6 +155,10 @@ spa_read_history_init(spa_t *spa)
 	ssh->size = 0;
 	ssh->private = NULL;
 
+#ifdef __FreeBSD__
+	printf("XXX FIXME %s\n", __func__);
+	return;
+#endif
 	name = kmem_asprintf("zfs/%s", spa_name(spa));
 
 	ksp = kstat_create(name, 0, "reads", "misc",
@@ -378,6 +382,10 @@ spa_txg_history_init(spa_t *spa)
 	ssh->count = 0;
 	ssh->size = 0;
 	ssh->private = NULL;
+#ifdef __FreeBSD__
+	printf("XXX FIXME %s\n", __func__);
+	return;
+#endif
 
 	name = kmem_asprintf("zfs/%s", spa_name(spa));
 
@@ -612,6 +620,10 @@ spa_tx_assign_init(spa_t *spa)
 	ssh->count = 42; /* power of two buckets for 1ns to 2,199s */
 	ssh->size = ssh->count * sizeof (kstat_named_t);
 	ssh->private = kmem_alloc(ssh->size, KM_SLEEP);
+#ifdef __FreeBSD__
+	printf("XXX FIXME %s\n", __func__);
+	return;
+#endif
 
 	name = kmem_asprintf("zfs/%s", spa_name(spa));
 
@@ -686,12 +698,12 @@ spa_io_history_init(spa_t *spa)
 	char *name;
 	kstat_t *ksp;
 
+	mutex_init(&ssh->lock, NULL, MUTEX_DEFAULT, NULL);
+
 #ifdef __FreeBSD__
 	printf("XXX FIXME %s\n", __func__);
 	return;
 #endif
-
-	mutex_init(&ssh->lock, NULL, MUTEX_DEFAULT, NULL);
 
 	name = kmem_asprintf("zfs/%s", spa_name(spa));
 
@@ -844,6 +856,10 @@ spa_mmp_history_init(spa_t *spa)
 	ssh->count = 0;
 	ssh->size = 0;
 	ssh->private = NULL;
+#ifdef __FreeBSD__
+	printf("XXX FIXME %s\n", __func__);
+	return;
+#endif
 
 	name = kmem_asprintf("zfs/%s", spa_name(spa));
 
@@ -1034,6 +1050,10 @@ spa_state_init(spa_t *spa)
 
 	mutex_init(&ssh->lock, NULL, MUTEX_DEFAULT, NULL);
 
+#ifdef __FreeBSD__
+	printf("XXX FIXME %s\n", __func__);
+	return;
+#endif
 	name = kmem_asprintf("zfs/%s", spa_name(spa));
 	ksp = kstat_create(name, 0, "state", "misc",
 	    KSTAT_TYPE_RAW, 0, KSTAT_FLAG_VIRTUAL);
@@ -1065,10 +1085,6 @@ spa_health_destroy(spa_t *spa)
 void
 spa_stats_init(spa_t *spa)
 {
-#ifdef __FreeBSD__
-	printf("XXX FIXME %s\n", __func__);
-	return;
-#endif
 	spa_read_history_init(spa);
 	spa_txg_history_init(spa);
 	spa_tx_assign_init(spa);
@@ -1080,10 +1096,6 @@ spa_stats_init(spa_t *spa)
 void
 spa_stats_destroy(spa_t *spa)
 {
-#ifdef __FreeBSD__
-	printf("XXX FIXME %s\n", __func__);
-	return;
-#endif
 	spa_health_destroy(spa);
 	spa_tx_assign_destroy(spa);
 	spa_txg_history_destroy(spa);

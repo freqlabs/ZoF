@@ -71,6 +71,9 @@ static struct cdev *zfsdev;
 extern void zfs_init(void);
 extern void zfs_fini(void);
 extern void zfs_ioctl_init(void);
+extern int zcommon_init(void);
+extern void zcommon_fini(void);
+
 
 static struct root_hold_token *zfs_root_token;
 
@@ -268,6 +271,7 @@ zfs__init(void)
 	root_mount_rel(zfs_root_token);
 
 	zfsdev_init();
+	zcommon_init();
 
 	return (0);
 }
@@ -280,6 +284,7 @@ zfs__fini(void)
 		return (EBUSY);
 	}
 
+	zcommon_fini();
 	zfsdev_fini();
 	zvol_fini();
 	zfs_fini();
