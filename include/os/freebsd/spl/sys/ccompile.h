@@ -128,7 +128,7 @@ extern "C" {
 
 #define vmem_free zfs_kmem_free
 /* XXX */
-#define vmem_zalloc zfs_kmem_alloc
+#define vmem_zalloc(size, flags) zfs_kmem_alloc(size, flags | M_ZERO)
 #define vmem_alloc zfs_kmem_alloc
 #else
 typedef unsigned int uint_t;
