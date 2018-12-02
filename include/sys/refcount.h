@@ -87,7 +87,7 @@ void refcount_transfer_ownership(refcount_t *, void *, void *);
 boolean_t refcount_held(refcount_t *, void *);
 boolean_t refcount_not_held(refcount_t *, void *);
 
-void refcount_init(void);
+void refcount_sysinit(void);
 void refcount_fini(void);
 
 #else	/* ZFS_DEBUG */
@@ -118,7 +118,7 @@ typedef struct refcount {
 #define	refcount_held(rc, holder)		((rc)->rc_count > 0)
 #define	refcount_not_held(rc, holder)		(B_TRUE)
 
-#define	refcount_init()
+#define	refcount_sysinit()
 #define	refcount_fini()
 
 #endif	/* ZFS_DEBUG */

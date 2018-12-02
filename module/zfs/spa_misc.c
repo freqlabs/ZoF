@@ -2111,7 +2111,7 @@ spa_init(int mode)
 #endif
 
 	fm_init();
-	refcount_init();
+	refcount_sysinit();
 	unique_init();
 	range_tree_init();
 	metaslab_alloc_trace_init();
