@@ -990,6 +990,9 @@ typedef struct vdev_stat {
 	uint64_t	vs_scan_processed;	/* scan processed bytes	*/
 	uint64_t	vs_fragmentation;	/* device fragmentation */
 	uint64_t	vs_checkpoint_space;    /* checkpoint-consumed space */
+	uint64_t	vs_configured_ashift;	/* TLV vdev_ashift      */
+	uint64_t	vs_logical_ashift;	/* vdev_logical_ashift  */
+	uint64_t	vs_physical_ashift;	/* vdev_physical_ashift */
 } vdev_stat_t;
 
 /*
