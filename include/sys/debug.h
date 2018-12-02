@@ -80,6 +80,9 @@ void spl_dumpstack(void);
 #define	VERIFY3P(x,y,z)	VERIFY3_IMPL(x, y, z, uintptr_t, "%p", (void *))
 #define	VERIFY0(x)	VERIFY3_IMPL(0, ==, x, int64_t, "%lld",	(long long))
 
+#ifdef __FreeBSD__
+#define	CTASSERT_GLOBAL(x)		CTASSERT(x)
+#else
 #define	CTASSERT_GLOBAL(x)		_CTASSERT(x, __LINE__)
 #define	CTASSERT(x)			{ _CTASSERT(x, __LINE__); }
 #define	_CTASSERT(x, y)			__CTASSERT(x, y)
@@ -87,6 +90,7 @@ void spl_dumpstack(void);
 	typedef char __attribute__ ((unused))				\
 	__compile_time_assertion__ ## y[(x) ? 1 : -1]
 
+#endif
 /*
  * Debugging disabled (--disable-debug)
  */
