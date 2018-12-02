@@ -78,6 +78,10 @@
 #include <sys/conf.h>
 /* XXX move us */
 
+#if BYTE_ORDER != BIG_ENDIAN
+#undef _BIG_ENDIAN
+#endif
+
 #define	taskq_create_sysdc(a, b, d, e, p, dc, f) \
 	    (taskq_create(a, b, maxclsyspri, d, e, f))
 
@@ -172,6 +176,13 @@ extern int spa_import_rootpool(const char *name);
 #include <sys/sunddi.h>
 #include <sys/debug.h>
 #include <sys/utsname.h>
+
+
+#ifdef __FreeBSD__
+#if BYTE_ORDER != BIG_ENDIAN
+#undef _BIG_ENDIAN
+#endif
+#endif
 
 /*
  * Stack
