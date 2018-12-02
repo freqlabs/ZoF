@@ -101,17 +101,6 @@ krwlock_t zfsvfs_lock;
 
 static kmem_cache_t *znode_cache = NULL;
 
-/*ARGSUSED*/
-static void
-znode_evict_error(dmu_buf_t *dbuf, void *user_ptr)
-{
-	/*
-	 * We should never drop all dbuf refs without first clearing
-	 * the eviction callback.
-	 */
-	panic("evicting znode %p\n", user_ptr);
-}
-
 extern struct vop_vector zfs_vnodeops;
 extern struct vop_vector zfs_fifoops;
 extern struct vop_vector zfs_shareops;
