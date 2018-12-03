@@ -4781,7 +4781,7 @@ arc_shrink(int64_t to_free)
 static uint64_t
 arc_all_memory(void)
 {
-	return ((uint64_t)physmem * arc_lotsfree_percent / 100);
+	return ((uint64_t)ptob(physmem));
 }
 #endif
 #ifdef __linux__
