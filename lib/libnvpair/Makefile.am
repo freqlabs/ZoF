@@ -1,3 +1,7 @@
+if BUILD_FREEBSD
+top_srcdir := $(ZFSBASE)
+endif
+
 include $(top_srcdir)/config/Rules.am
 
 VPATH = \
@@ -34,3 +38,14 @@ libnvpair_la_LIBADD = $(LIBTIRPC)
 libnvpair_la_LDFLAGS = -version-info 1:1:0
 
 EXTRA_DIST = $(USER_C)
+
+if BUILD_FREEBSD
+
+LIB = libnvpair
+
+objs := $(patsubst %.c,%.o, $(nodist_libnvpair_la_SOURCES))
+LDFLAGS += -lthr -lmd -lz
+
+include $(top_srcdir)/lib/Makefile.bsd.inc
+
+endif

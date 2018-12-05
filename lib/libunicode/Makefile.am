@@ -1,3 +1,7 @@
+if BUILD_FREEBSD
+top_srcdir := $(ZFSBASE)
+endif
+
 include $(top_srcdir)/config/Rules.am
 
 VPATH = $(top_srcdir)/module/unicode
@@ -22,3 +26,14 @@ nodist_libunicode_la_SOURCES = \
 	$(KERNEL_C)
 
 EXTRA_DIST = $(USER_C)
+
+if BUILD_FREEBSD
+
+LIB = libunicode
+
+objs := $(patsubst %.c,%.o, $(nodist_libunicode_la_SOURCES))
+LDFLAGS += -lthr -lmd -lz
+
+include $(top_srcdir)/lib/Makefile.bsd.inc
+
+endif

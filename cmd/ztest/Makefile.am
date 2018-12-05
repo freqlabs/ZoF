@@ -1,4 +1,6 @@
+if BUILD_LINUX
 include $(top_srcdir)/config/Rules.am
+endif
 
 # Get rid of compiler warning for unchecked truncating snprintfs on gcc 7.1.1
 AM_CFLAGS += $(NO_FORMAT_TRUNCATION)
@@ -25,3 +27,23 @@ ztest_LDADD = \
 
 ztest_LDADD += -lm
 ztest_LDFLAGS = -pthread
+
+if BUILD_FREEBSD
+
+objs = ztest.o
+
+PROG = ztest
+
+CFLAGS += $(DEFAULT_INCLUDES) $(AM_CPPFLAGS)
+LDFLAGS += -L$(top_srcdir)/lib/libnvpair
+LDFLAGS += -L$(top_srcdir)/lib/libzfs
+LDFLAGS += -L$(top_srcdir)/lib/libzpool
+LDFLAGS += -L$(top_srcdir)/lib/libspl
+LDFLAGS += -L$(top_srcdir)/lib/libavl
+LDFLAGS += -L$(top_srcdir)/lib/libicp
+LDFLAGS += -L$(top_srcdir)/lib/libunicode
+LDFLAGS += -pthread -lm -lnvpair -lzfs -lzpool -lspl -lavl -licp -lunicode
+
+include $(top_srcdir)/cmd/Makefile.bsd.inc
+
+endif

@@ -1,4 +1,8 @@
+if BUILD_FREEBSD
+top_srcdir := $(ZFSBASE)
+else
 include $(top_srcdir)/config/Rules.am
+endif
 
 VPATH = $(top_srcdir)/module/avl/
 
@@ -21,3 +25,14 @@ nodist_libavl_la_SOURCES = \
 	$(KERNEL_C)
 
 EXTRA_DIST = $(USER_C)
+
+if BUILD_FREEBSD
+
+LIB = libavl
+
+objs := $(patsubst %.c,%.o, $(nodist_libavl_la_SOURCES))
+LDFLAGS += -lthr -lmd -lz
+
+include $(top_srcdir)/lib/Makefile.bsd.inc
+
+endif

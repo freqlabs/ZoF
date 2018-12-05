@@ -1,4 +1,7 @@
+if BUILD_LINUX
 include $(top_srcdir)/config/Rules.am
+else
+top_srcdir := $(ZFSBASE)
 
 VPATH = \
 	$(top_srcdir)/module/icp \
@@ -14,6 +17,7 @@ DEFAULT_INCLUDES += \
 
 noinst_LTLIBRARIES = libicp.la
 
+if BUILD_LINUX
 if TARGET_ASM_X86_64
 ASM_SOURCES_C = asm-x86_64/aes/aeskey.c
 ASM_SOURCES_AS = \
@@ -33,6 +37,15 @@ endif
 if TARGET_ASM_GENERIC
 ASM_SOURCES_C =
 ASM_SOURCES_AS =
+endif
+else
+ASM_SOURCES_AS = \
+	asm-x86_64/aes/aes_amd64.S \
+	asm-x86_64/aes/aes_aesni.S \
+	asm-x86_64/modes/gcm_pclmulqdq.S \
+	asm-x86_64/sha1/sha1-x86_64.S \
+	asm-x86_64/sha2/sha256_impl.S \
+	asm-x86_64/sha2/sha512_impl.S
 endif
 
 USER_C =
@@ -80,7 +93,9 @@ KERNEL_C = \
 	core/kcf_prov_tabs.c \
 	$(ASM_SOURCES_C)
 
+if BUILD_LINUX
 KERNEL_ASM = $(ASM_SOURCES_AS)
+endif
 
 nodist_libicp_la_SOURCES = \
 	$(USER_C) \
@@ -89,3 +104,18 @@ nodist_libicp_la_SOURCES = \
 	$(KERNEL_ASM)
 
 libicp_la_LIBADD = -lrt
+
+if BUILD_FREEBSD
+
+LIB = libicp
+asm_objs := aes_amd64.o
+
+objs := $(patsubst␣%.c,%.o, $(nodist_libicp_la_SOURCES))
+asm_objs␣:= $(patsubst␣%.S,%.o, $(ASM_SOURCES_AS))
+LDFLAGS += -lthr -lmd -lz
+ASM_CFLAGS += $(DEFAULT_INCLUDES)
+CFLAGS += $(DEFAULT_INCLUDES)
+
+include $(top_srcdir)/lib/Makefile.bsd.inc
+
+endif

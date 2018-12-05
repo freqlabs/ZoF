@@ -64,11 +64,28 @@ ZFS_AC_DEBUG_KMEM_TRACKING
 
 AC_MSG_CHECKING([for kernel type ($host_os)])
 case $host_os in
-   *linux*)
-   AC_CONFIG_FILES([
+	*linux*)
+		AC_DEFINE([KERNEL_LINUX], [1],
+			  [True if ZFS is to be compiled for a Linux kernel])
+		ac_system="Linux"
+		;;
+	*freebsd*)
+		AC_DEFINE([KERNEL_FREEBSD], [1],
+			  [True if ZFS is to be compiled for a FreeBSD kernel])
+		ac_system="FreeBSD"
+		;;
+	*)
+		ac_system="unknown"
+		;;
+esac
+AC_MSG_RESULT([$ac_system])
+
+AM_CONDITIONAL([BUILD_LINUX], [test "x$ac_system" = "xLinux"])
+AM_CONDITIONAL([BUILD_FREEBSD], [test "x$ac_system" = "xFreeBSD"])
+
+AM_COND_IF([BUILD_LINUX], [AC_CONFIG_FILES([
 	udev/Makefile
 	udev/rules.d/Makefile
-	include/spl/Makefile
 	include/linux/Makefile
 	etc/systemd/Makefile
 	etc/systemd/system/Makefile
@@ -86,14 +103,12 @@ case $host_os in
 	rpm/generic/zfs-kmod.spec
 	rpm/generic/zfs-dkms.spec
 	])
-   ;;
-   *freebsd*)
-    AC_CONFIG_FILES([
+])
+AM_COND_IF([BUILD_FREEBSD], [AC_CONFIG_FILES([
 	module/os/freebsd/spl/Makefile
-    ])
-   ;;
-esac
-
+	module/os/freebsd/zfs/Makefile
+	])
+])
 
 AC_CONFIG_FILES([
 	Makefile

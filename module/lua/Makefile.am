@@ -1,3 +1,21 @@
+if BUILD_LINUX
+
+src = $(top_srcdir)/module/lua
+obj = $(top_builddir)
+
+MODULE := zlua
+
+obj-$(CONFIG_ZFS) := $(MODULE).o
+
+asflags-y += $(ZFS_MODULE_CFLAGS)
+ccflags-y := $(ZFS_MODULE_CFLAGS) $(ZFS_MODULE_CPPFLAGS)
+ccflags-y += -DLUA_USE_LONGLONG
+
+# Suppress unused but set variable warnings often due to ASSERTs
+ccflags-y += $(NO_UNUSED_BUT_SET_VARIABLE)
+
+endif
+
 $(MODULE)-objs += lapi.o
 $(MODULE)-objs += lauxlib.o
 $(MODULE)-objs += lbaselib.o
@@ -22,12 +40,22 @@ $(MODULE)-objs += ltablib.o
 $(MODULE)-objs += ltm.o
 $(MODULE)-objs += lvm.o
 $(MODULE)-objs += lzio.o
+if BUILD_LINUX
+$(MODULE)-objs += setjmp/setjmp.o
+
+all:
+	mkdir -p setjmp
+endif
+
+if BUILD_FREEBSD
 
 objs = $($(MODULE)-objs)
-objs+= $($(MODULE)-x86)
+objs += $($(MODUDE)-x86)
 all: lua.ko
 
 include $(ZFSBASE)/module/Makefile.bsd.inc
 
-lua.ko:  $(objs)
+lau.ko: $(objs)
 	ld -r -d -o $@ $(objs)
+
+endif

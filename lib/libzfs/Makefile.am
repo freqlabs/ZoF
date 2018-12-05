@@ -1,3 +1,7 @@
+if BUILD_FREEBSD
+top_srcdir := $(ZFSBASE)
+endif
+
 include $(top_srcdir)/config/Rules.am
 
 VPATH = \
@@ -66,3 +70,15 @@ libzfs_la_LIBADD += -lm $(LIBBLKID) $(LIBUDEV) $(LIBSSL)
 libzfs_la_LDFLAGS = -version-info 2:0:0
 
 EXTRA_DIST = $(libzfs_pc_DATA) $(USER_C)
+
+if BUILD_FREEBSD
+
+LIB = libzfs
+
+objs := $(patsubst %.c,%.o, $(nodist_libzfs_la_SOURCES))
+LDFLAGS += -lthr -lmd -lz
+CFLAGS += -I$(top_srcdir)/module/icp/include
+
+include $(top_srcdir)/lib/Makefile.bsd.inc
+
+endif

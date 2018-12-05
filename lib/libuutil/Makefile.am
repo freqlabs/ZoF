@@ -1,4 +1,8 @@
+if BUILD_FREEBSD
+top_srcdir := $(ZFSBASE)
+else
 include $(top_srcdir)/config/Rules.am
+endif
 
 DEFAULT_INCLUDES += \
 	-I$(top_srcdir)/include \
@@ -26,3 +30,14 @@ libuutil_la_LIBADD = \
 libuutil_la_LDFLAGS = -pthread -version-info 1:1:0
 
 EXTRA_DIST = $(USER_C)
+
+if BUILD_FREEBSD
+
+LIB = libuutil
+
+objs := $(patsubst %.c,%.o, $(nodist_libuutil_la_SOURCES))
+LDFLAGS += -lthr -lmd -lz
+
+include $(top_srcdir)/lib/Makefile.bsd.inc
+
+endif

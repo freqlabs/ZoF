@@ -1,6 +1,6 @@
-src = @abs_top_srcdir@/module/zfs
-obj = @abs_builddir@
-target_cpu = @target_cpu@
+src = $(top_srcdir)/module/zfs
+obj = $(top_builddir)
+target_cpu = $(target_cpu)
 
 MODULE := zfs
 
@@ -49,6 +49,10 @@ $(MODULE)-objs += dsl_pool.o
 $(MODULE)-objs += dsl_prop.o
 $(MODULE)-objs += dsl_scan.o
 $(MODULE)-objs += dsl_synctask.o
+if BUILD_LINUX
+$(MODULE)-objs += edonr_zfs.o
+$(MODULE)-objs += hkdf.o
+endif
 $(MODULE)-objs += fm.o
 $(MODULE)-objs += gzip.o
 $(MODULE)-objs += lzjb.o
@@ -79,6 +83,10 @@ $(MODULE)-objs += uberblock.o
 $(MODULE)-objs += unique.o
 $(MODULE)-objs += vdev.o
 $(MODULE)-objs += vdev_cache.o
+$(MODULE)-objs += vdev_disk.o
+if BUILD_LINUX
+$(MODULE)-objs += vdev_file.o
+endif
 $(MODULE)-objs += vdev_indirect.o
 $(MODULE)-objs += vdev_indirect_births.o
 $(MODULE)-objs += vdev_indirect_mapping.o
@@ -100,11 +108,23 @@ $(MODULE)-objs += zcp_global.o
 $(MODULE)-objs += zcp_iter.o
 $(MODULE)-objs += zcp_synctask.o
 $(MODULE)-objs += zfeature.o
+if BUILD_LINUX
+$(MODULE)-objs += zfs_acl.o
+$(MODULE)-objs += zfs_ctldir.o
+$(MODULE)-objs += zfs_dir.o
+$(MODULE)-objs += zfs_log.o
+$(MODULE)-objs += zfs_replay.o
+$(MODULE)-objs += zio_crypt.o
+$(MODULE)-objs += zvol.o
+endif
 $(MODULE)-objs += zfs_byteswap.o
 $(MODULE)-objs += zfs_debug.o
 $(MODULE)-objs += zfs_fm.o
 $(MODULE)-objs += zfs_fuid.o
+if BUILD_FREEBSD
 $(MODULE)-objs += zfs_ioctl.o
+$(MODULE)-objs += zle.o
+endif
 $(MODULE)-objs += zfs_onexit.o
 $(MODULE)-objs += zfs_ratelimit.o
 $(MODULE)-objs += zfs_rlock.o
@@ -114,7 +134,6 @@ $(MODULE)-objs += zio.o
 $(MODULE)-objs += zio_checksum.o
 $(MODULE)-objs += zio_compress.o
 $(MODULE)-objs += zio_inject.o
-$(MODULE)-objs += zle.o
 $(MODULE)-objs += zrlock.o
 $(MODULE)-objs += zthr.o
 $(MODULE)-objs += dsl_destroy.o
@@ -125,23 +144,26 @@ $(MODULE)-objs += dsl_userhold.o
 OBJECT_FILES_NON_STANDARD_vdev_raidz_math_avx512bw.o := y
 OBJECT_FILES_NON_STANDARD_vdev_raidz_math_avx512f.o := y
 
-$(MODULE)-x86 += vdev_raidz_math_sse2.o
-$(MODULE)-x86 += vdev_raidz_math_ssse3.o
-$(MODULE)-x86 += vdev_raidz_math_avx2.o
-$(MODULE)-x86 += vdev_raidz_math_avx512f.o
-$(MODULE)-x86 += vdev_raidz_math_avx512bw.o
+$(MODULE)-$(CONFIG_X86) += vdev_raidz_math_sse2.o
+$(MODULE)-$(CONFIG_X86) += vdev_raidz_math_ssse3.o
+$(MODULE)-$(CONFIG_X86) += vdev_raidz_math_avx2.o
+$(MODULE)-$(CONFIG_X86) += vdev_raidz_math_avx512f.o
+$(MODULE)-$(CONFIG_X86) += vdev_raidz_math_avx512bw.o
 
-#$(MODULE)-$(CONFIG_ARM64) += vdev_raidz_math_aarch64_neon.o
-#$(MODULE)-$(CONFIG_ARM64) += vdev_raidz_math_aarch64_neonx2.o
+if BUILD_LINUX
+$(MODULE)-$(CONFIG_ARM64) += vdev_raidz_math_aarch64_neon.o
+$(MODULE)-$(CONFIG_ARM64) += vdev_raidz_math_aarch64_neonx2.o
+endif
+
+if BUILD_FREEBSD
 
 objs = $($(MODULE)-objs)
-objs+= $($(MODULE)-x86)
+objs += $($(MODULE)-x86)
 all: zfs_common.ko
-
-#CFLAGS+= -D__x86_64 -DHAVE_AVX2
-#CFLAGS+= -D_SYS_UIO_H_
 
 include $(ZFSBASE)/module/Makefile.bsd.inc
 
-zfs_common.ko:  $(objs)
+zfs_common.ko: $(objs)
 	ld -r -d -o $@ $(objs)
+
+endif

@@ -1,3 +1,5 @@
+if MAKE_LINUX
+
 subdir-m += avl
 subdir-m += icp
 subdir-m += lua
@@ -75,3 +77,38 @@ install: modules_install
 uninstall: modules_uninstall
 all: modules
 check:
+
+endif
+
+if MAKE_FREEBSD
+
+ZFSBASE := $(shell pwd)/..
+
+all: zfs.ko
+
+archives := avl/avl.ko lua/lua.ko nvpair/nvpair.ko zcommon/zcommon.ko zfs/zfs_common.ko \
+	unicode/unicode.ko os/freebsd/zfs/zfs_os.ko os/freebsd/spl/spl.ko
+
+zfs.ko: ${archives}
+	ld -m elf_x86_64_fbsd -d -warn-common --build-id=sha1 -r -d -o zfs.ko ${archives}
+
+avl/avl.ko:
+	$(MAKE) -C avl
+lua/lua.ko:
+	$(MAKE) -C lua
+nvpair/nvpair.ko:
+	$(MAKE) -C nvpair
+unicode/unicode.ko:
+	$(MAKE) -C unicode
+zcommon/zcommon.ko:
+	$(MAKE) -C zcommon
+zfs/zfs_common.ko:
+	$(MAKE) -C zfs
+
+os/freebsd/spl/spl.ko:
+	$(MAKE) -C os/freebsd/spl
+
+os/freebsd/zfs/zfs_os.ko:
+	$(MAKE) -C os/freebsd/zfs
+
+endif

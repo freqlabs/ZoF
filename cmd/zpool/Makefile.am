@@ -4,6 +4,8 @@ DEFAULT_INCLUDES += \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/lib/libspl/include
 
+if BUILD_LINUX
+
 sbin_PROGRAMS = zpool
 
 zpool_SOURCES = \
@@ -120,3 +122,28 @@ install-data-hook:
 	       -L "$(DESTDIR)$(zpoolconfdir)/$${f}" || \
 	    ln -s "$(zpoolexecdir)/$${f}" "$(DESTDIR)$(zpoolconfdir)"; \
 	done
+
+else
+
+zpool_SOURCES = \
+	zpool_iter.c \
+	zpool_main.c \
+	zpool_util.c \
+	zpool_util.h \
+	zpool_vdev.c \
+	freebsd_zpool_vdev.c
+
+objs = \
+	zpool_iter.o \
+	zpool_main.o \
+	zpool_util.o \
+	freebsd_zpool_vdev.o
+
+PROG = zpool
+
+AM_CFLAGS += -Wno-absolute-value
+AM_LDFLAGS += -L. -lzpool -luutil -ltpool -lnvpair -lzfs -L/usr/local/lib -lintl -lspl -lgeom -lzfs_core -lavl
+
+include $(src_topdir)/cmd/Makefile.bsd.inc
+
+endif

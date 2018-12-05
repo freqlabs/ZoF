@@ -1,10 +1,22 @@
+if BUILD_FREEBSD
+top_srcdir := $(ZFSBASE)
+else
 include $(top_srcdir)/config/Rules.am
+endif
 
 VPATH = \
 	$(top_srcdir)/module/zfs \
 	$(top_srcdir)/module/zcommon \
 	$(top_srcdir)/module/lua \
 	$(top_srcdir)/lib/libzpool
+if BUILD_LINUX
+VPATH += \
+	$(top_srcdir)/module/os/linux/zfs
+endif
+if BUILD_FREEBSD
+VPATH += \
+	$(top_srcdir)/module/os/freebsd/zfs
+endif
 
 # Suppress unused but set variable warnings often due to ASSERTs
 AM_CFLAGS += $(NO_UNUSED_BUT_SET_VARIABLE)
@@ -197,3 +209,14 @@ libzpool_la_LIBADD += $(ZLIB) -ldl
 libzpool_la_LDFLAGS = -pthread -version-info 2:0:0
 
 EXTRA_DIST = $(USER_C)
+
+if BUILD_FREEBSD
+
+LIB = libzpool
+
+objs := $(patsubst %.c,%.o, $(nodist_libzpool_la_SOURCES))
+LDFLAGS += -lthr -lmd -lz
+
+include $(top_srcdir)/lib/Makefile.bsd.inc
+
+endif

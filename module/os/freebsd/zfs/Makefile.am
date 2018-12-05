@@ -1,6 +1,6 @@
-src = @abs_top_srcdir@/module/zfs
-obj = @abs_builddir@
-target_cpu = @target_cpu@
+src = $(top_srcdir)/module/zfs
+obj = $(top_builddir)
+target_cpu = $(target_cpu)
 
 MODULE := zfs
 
