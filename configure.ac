@@ -38,7 +38,7 @@ AC_CONFIG_AUX_DIR([config])
 AC_CONFIG_MACRO_DIR([config])
 AC_CANONICAL_SYSTEM
 AM_MAINTAINER_MODE
-m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])])
 AM_INIT_AUTOMAKE([subdir-objects])
 AC_CONFIG_HEADERS([zfs_config.h], [
 	(mv zfs_config.h zfs_config.h.tmp &&
@@ -62,13 +62,9 @@ ZFS_AC_DEBUG_KMEM
 ZFS_AC_DEBUG_KMEM_TRACKING
 
 
-AC_MSG_CHECKING([for kernel type ($host_os)])
-case $host_os in
-   *linux*)
-   AC_CONFIG_FILES([
+AM_COND_IF([BUILD_LINUX], [AC_CONFIG_FILES([
 	udev/Makefile
 	udev/rules.d/Makefile
-	include/spl/Makefile
 	include/linux/Makefile
 	etc/systemd/Makefile
 	etc/systemd/system/Makefile
@@ -86,14 +82,12 @@ case $host_os in
 	rpm/generic/zfs-kmod.spec
 	rpm/generic/zfs-dkms.spec
 	])
-   ;;
-   *freebsd*)
-    AC_CONFIG_FILES([
-	module/os/freebsd/spl/Makefile
-    ])
-   ;;
-esac
-
+])
+dnl AM_COND_IF([BUILD_FREEBSD], [AC_CONFIG_FILES([
+dnl 	module/os/freebsd/spl/Makefile
+dnl 	module/os/freebsd/zfs/Makefile
+dnl 	])
+dnl ])
 
 AC_CONFIG_FILES([
 	Makefile
