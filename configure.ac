@@ -72,6 +72,8 @@ AM_COND_IF([BUILD_LINUX], [AC_CONFIG_FILES([
 	include/os/linux/spl/rpc/Makefile
 	include/os/linux/spl/sys/Makefile
 	module/os/linux/spl/Makefile
+	module/os/linux/zfs/Makefile
+	module/icp/Makefile
 	rpm/Makefile
 	rpm/redhat/Makefile
 	rpm/redhat/zfs.spec
@@ -83,11 +85,12 @@ AM_COND_IF([BUILD_LINUX], [AC_CONFIG_FILES([
 	rpm/generic/zfs-dkms.spec
 	])
 ])
-dnl AM_COND_IF([BUILD_FREEBSD], [AC_CONFIG_FILES([
-dnl 	module/os/freebsd/spl/Makefile
-dnl 	module/os/freebsd/zfs/Makefile
-dnl 	])
-dnl ])
+
+AM_COND_IF([BUILD_FREEBSD], [AC_CONFIG_FILES([
+	module/os/freebsd/spl/Makefile
+	module/os/freebsd/zfs/Makefile
+	])
+])
 
 AC_CONFIG_FILES([
 	Makefile
@@ -160,7 +163,6 @@ AC_CONFIG_FILES([
 	module/zcommon/Makefile
 	module/zfs/Makefile
 	module/lua/Makefile
-	module/icp/Makefile
 	include/Makefile
 	include/sys/Makefile
 	include/sys/fs/Makefile
