@@ -1148,7 +1148,7 @@ mzap_addent(zap_name_t *zn, uint64_t value)
 
 	ASSERT(RW_WRITE_HELD(&zap->zap_rwlock));
 
-#ifdef ZFS_DEBUG
+#if defined(ZFS_DEBUG) && !defined(NDEBUG)
 	for (int i = 0; i < zap->zap_m.zap_num_chunks; i++) {
 		mzap_ent_phys_t *mze = &zap_m_phys(zap)->mz_chunk[i];
 		ASSERT(strcmp(zn->zn_key_orig, mze->mze_name) != 0);
@@ -1286,7 +1286,7 @@ zap_update(objset_t *os, uint64_t zapobj, const char *name,
 	ASSERTV(uint64_t oldval);
 	const uint64_t *intval = val;
 
-#ifdef ZFS_DEBUG
+#if defined(ZFS_DEBUG) && !defined(NDEBUG)
 
 	/*
 	 * If there is an old value, it shouldn't change across the
