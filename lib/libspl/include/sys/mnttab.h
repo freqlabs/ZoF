@@ -45,6 +45,8 @@
 #define	MNTTAB		_PATH_DEVZERO
 #define MS_NOMNTTAB     0x0
 #define MS_RDONLY       0x1
+#define	umount2(p, f)	unmount(p, f)
+
 #else
 #define	MNTTAB		"/proc/self/mounts"
 #endif
