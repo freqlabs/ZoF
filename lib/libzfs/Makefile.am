@@ -24,13 +24,26 @@ USER_C = \
 	libzfs_crypto.c \
 	libzfs_dataset.c \
 	libzfs_diff.c \
-	libzfs_import.c \
 	libzfs_iter.c \
-	libzfs_mount.c \
 	libzfs_pool.c \
 	libzfs_sendrecv.c \
 	libzfs_status.c \
 	libzfs_util.c
+
+if BUILD_LINUX
+USER_C+= \
+	linux_libzfs_import.c \
+	linux_libzfs_mount.c
+endif
+
+if BUILD_FREEBSD
+USER_C+= \
+	freebsd_deviceid.c \
+	freebsd_fsshare.c \
+	freebsd_libzfs_import.c
+	freebsd_libzfs_mount.c \
+	freebsd_mnttab.c
+endif
 
 KERNEL_C = \
 	algs/sha2/sha2.c \
@@ -55,12 +68,17 @@ nodist_libzfs_la_SOURCES = \
 	$(KERNEL_C)
 
 libzfs_la_LIBADD = \
-        $(top_builddir)/lib/libefi/libefi.la \
 	$(top_builddir)/lib/libnvpair/libnvpair.la \
-	$(top_builddir)/lib/libshare/libshare.la \
 	$(top_builddir)/lib/libtpool/libtpool.la \
 	$(top_builddir)/lib/libuutil/libuutil.la \
 	$(top_builddir)/lib/libzfs_core/libzfs_core.la
+
+if BUILD_LINUX
+libzfs_la_LIBADD+= \
+	$(top_builddir)/lib/libefi/libefi.la \
+	$(top_builddir)/lib/libshare/libshare.la
+endif
+
 
 libzfs_la_LIBADD += -lm $(LIBBLKID) $(LIBUDEV) $(LIBSSL)
 libzfs_la_LDFLAGS = -version-info 2:0:0
