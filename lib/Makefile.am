@@ -1,8 +1,10 @@
 # NB: GNU Automake Manual, Chapter 8.3.5: Libtool Convenience Libraries
 # These six libraries are intermediary build components.
-#SUBDIRS = libavl libefi libicp libshare libspl libtpool libunicode
-SUBDIRS = libavl libspl libtpool libunicode
+SUBDIRS = libavl libicp libspl libtpool libunicode
+if BUILD_LINUX
+SUBDIRS+= libefi
+endif
 
-# These four libraries, which are installed as the final build product,
+# These five libraries, which are installed as the final build product,
 # incorporate the six convenience libraries given above.
 SUBDIRS += libuutil libnvpair libzpool libzfs_core libzfs
