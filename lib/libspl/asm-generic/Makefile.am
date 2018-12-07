@@ -4,16 +4,6 @@ DEFAULT_INCLUDES += \
 	-I$(top_srcdir)/lib/libspl/include \
 	-I$(top_srcdir)/include
 
-if BUILD_LINUX
-DEFAULT_INCLUDES += \
-	-I$(top_srcdir)/include/os/linux/spl
-endif
-
-if BUILD_FREEBSD
-DEFAULT_INCLUDES += \
-	-I$(top_srcdir)/include/os/freebsd/spl
-endif
-
 atomic_SOURCE = atomic.c
 atomic_ASM = atomic.S
 
