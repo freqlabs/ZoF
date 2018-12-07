@@ -24,10 +24,12 @@
  * Use is subject to license terms.
  */
 
-#include_next <sys/mount.h>
 
 #ifndef _LIBSPL_SYS_MOUNT_H
 #define	_LIBSPL_SYS_MOUNT_H
+
+#undef _SYS_MOUNT_H_
+#include_next <sys/mount.h>
 
 #include <assert.h>
 #include <string.h>
@@ -57,6 +59,16 @@
  */
 #if !defined(MS_POSIXACL)
 #define	MS_POSIXACL		(1<<16)
+#endif
+
+#ifdef __FreeBSD__
+#define	MS_NOSUID	MNT_NOSUID
+#define	MS_NOEXEC	MNT_NOEXEC
+#define	MS_NODEV	0
+#define	S_WRITE		0
+#define	MS_BIND		0
+#define	MS_REMOUNT	0
+#define	MS_SYNCHRONOUS	MNT_SYNCHRONOUS
 #endif
 
 #define	MS_USERS	(MS_NOEXEC|MS_NOSUID|MS_NODEV)

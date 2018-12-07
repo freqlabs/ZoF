@@ -81,8 +81,8 @@ _sol_getmntent(FILE *fp, struct mnttab *mgetp)
 	return (MNT_TOOLONG);
 }
 
-int
-getextmntent(FILE *fp, struct extmnttab *mp, int len)
+static int
+_linux_getextmntent(FILE *fp, struct extmnttab *mp, int len)
 {
 	int ret;
 	struct stat64 st;
@@ -100,3 +100,65 @@ getextmntent(FILE *fp, struct extmnttab *mp, int len)
 
 	return (ret);
 }
+
+int
+getextmntent(const char *path, struct extmnttab *entry, struct stat64 *statbuf)
+{
+	int ret;
+	struct stat64 st;
+
+	if (strlen(fullpath) >= MAXPATHLEN) {
+		(void) fprintf(stderr, "invalid object; pathname too long\n");
+		return (-1);
+	}
+
+	/*
+	 * Search for the path in /proc/self/mounts. Rather than looking for the
+	 * specific path, which can be fooled by non-standard paths (i.e. ".."
+	 * or "//"), we stat() the path and search for the corresponding
+	 * (major,minor) device pair.
+	 */
+	if (stat64(fullpath, statbuf) != 0) {
+		(void) fprintf(stderr, "cannot open '%s': %s\n",
+		    fullpath, strerror(errno));
+		return (-1);
+	}
+
+
+#ifdef HAVE_SETMNTENT
+	if ((fp = setmntent(MNTTAB, "r")) == NULL) {
+#else
+	if ((fp = fopen(MNTTAB, "r")) == NULL) {
+#endif
+		(void) fprintf(stderr, "cannot open %s\n", MNTTAB);
+		return (-1);
+	}
+
+	/*
+	 * Search for the given (major,minor) pair in the mount table.
+	 */
+
+	match = 0;
+	while (linux_getextmntent(fp, &mp, sizeof (mp)) == 0) {
+		if (makedev(mp.mnt_major, mp.mnt_minor) == statbuf->st_dev) {
+			match = 1;
+			break;
+		}
+	}
+
+	if (!match) {
+		(void) fprintf(stderr, "cannot find mountpoint for '%s'\n",
+		    fullpath);
+		return (-1);
+	}
+
+	if (stat64(mp->mnt_mountp, &st) != 0) {
+		mp->mnt_major = 0;
+		mp->mnt_minor = 0;
+		return (-1);
+	}
+
+	return (0);
+}
+
+
