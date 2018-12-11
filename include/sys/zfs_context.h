@@ -80,6 +80,8 @@
 
 #if BYTE_ORDER != BIG_ENDIAN
 #undef _BIG_ENDIAN
+#undef BIG_ENDIAN
+#define BIG_ENDIAN 4321
 #endif
 
 #define	taskq_create_sysdc(a, b, d, e, p, dc, f) \
