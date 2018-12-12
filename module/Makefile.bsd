@@ -77,7 +77,6 @@ SRCS+=	acl_common.c \
 	list.c \
 	opensolaris.c \
 	opensolaris_acl.c \
-	opensolaris_atomic.c \
 	opensolaris_cmn_err.c \
 	opensolaris_dtrace.c \
 	opensolaris_kmem.c \
@@ -96,6 +95,12 @@ SRCS+=	acl_common.c \
 	sha256c.c \
 	sha512c.c \
 	spl_zlib.c
+
+
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
+	${MACHINE_ARCH} == "arm"
+SRCS+= opensolaris_atomic.c
+.endif
 
 #os/freebsd/zfs
 SRCS+=	abd.c \
