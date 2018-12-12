@@ -27,6 +27,7 @@ CFLAGS+=  -D_SYS_VMEM_H_ -D_MACHINE_ENDIAN_H_
 
 CFLAGS+= -DINVARIANTS -DWITNESS -g -O0
 
+DEBUG_FLAGS=-g
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
 	${MACHINE_ARCH} == "arm"
