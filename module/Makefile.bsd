@@ -108,6 +108,7 @@ SRCS+=	abd.c \
 	freebsd_dmu.c \
 	freebsd_kmod.c \
 	freebsd_spa.c \
+	freebsd_sysctl.c \
 	hkdf.c \
 	vdev_file.c \
 	vdev_geom.c \
