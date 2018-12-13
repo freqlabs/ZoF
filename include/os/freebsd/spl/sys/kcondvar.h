@@ -65,15 +65,30 @@ static inline clock_t
 cv_timedwait_hires(kcondvar_t *cvp, kmutex_t *mp, hrtime_t tim, hrtime_t res,
     int flag)
 {
+	int rc;
 
-	return (cv_timedwait_sbt(cvp, mp, nstosbt(tim), nstosbt(res), flag));
+	if (flag == 0)
+		tim += gethrtime();
+
+	rc = cv_timedwait_sbt(cvp, mp, nstosbt(tim), nstosbt(res), C_ABSOLUTE);
+
+	KASSERT(rc == EWOULDBLOCK || rc == 0, ("unexpected rc value %d", rc));
+	return (tim - gethrtime());
 }
+
 static inline clock_t
 cv_timedwait_sig_hires(kcondvar_t *cvp, kmutex_t *mp, hrtime_t tim,
     hrtime_t res, int flag)
 {
+	int rc;
 
-	return (cv_timedwait_sig_sbt(cvp, mp, nstosbt(tim), nstosbt(res), flag));
+	if (flag == 0)
+		tim += gethrtime();
+
+	rc = cv_timedwait_sig_sbt(cvp, mp, nstosbt(tim), nstosbt(res), C_ABSOLUTE);
+
+	KASSERT(rc == EWOULDBLOCK || rc == EINTR || rc == ERESTART || rc == 0, ("unexpected rc value %d", rc));
+	return (tim - gethrtime());
 }
 #endif	/* _KERNEL */
 
