@@ -40,8 +40,7 @@
 #include <sys/kmem.h>
 
 typedef struct cv	kcondvar_t;
-/* XXX */
-#define CALLOUT_FLAG_ABSOLUTE 0
+#define CALLOUT_FLAG_ABSOLUTE C_ABSOLUTE
 
 typedef enum {
 	CV_DEFAULT,
@@ -67,13 +66,14 @@ cv_timedwait_hires(kcondvar_t *cvp, kmutex_t *mp, hrtime_t tim, hrtime_t res,
     int flag)
 {
 
-	return (cv_timedwait_sbt(cvp, mp, nstosbt(tim), nstosbt(res), 0));
+	return (cv_timedwait_sbt(cvp, mp, nstosbt(tim), nstosbt(res), flag));
 }
 static inline clock_t
 cv_timedwait_sig_hires(kcondvar_t *cvp, kmutex_t *mp, hrtime_t tim,
     hrtime_t res, int flag)
 {
-	return (cv_timedwait_sig_sbt(cvp, mp, nstosbt(tim), nstosbt(res), 0));
+
+	return (cv_timedwait_sig_sbt(cvp, mp, nstosbt(tim), nstosbt(res), flag));
 }
 #endif	/* _KERNEL */
 
