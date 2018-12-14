@@ -100,9 +100,9 @@ int zfs_scan_ignore_errors = 0;
 int vdev_standard_sm_blksz = (1 << 17);
 
 
-static uint64_t zfs_max_auto_ashift = ASHIFT_MAX;
+uint64_t zfs_max_auto_ashift = ASHIFT_MAX;
 
-static uint64_t zfs_min_auto_ashift = ASHIFT_MIN;
+uint64_t zfs_min_auto_ashift = ASHIFT_MIN;
 
 /*PRINTFLIKE2*/
 void
