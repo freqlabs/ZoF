@@ -71,6 +71,7 @@ AM_COND_IF([BUILD_LINUX], [AC_CONFIG_FILES([
 	etc/systemd/system-generators/Makefile
 	include/os/linux/spl/rpc/Makefile
 	include/os/linux/spl/sys/Makefile
+	module/Makefile.linux
 	module/os/linux/spl/Makefile
 	module/os/linux/zfs/Makefile
 	module/icp/Makefile
