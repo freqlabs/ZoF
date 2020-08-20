@@ -30,7 +30,15 @@
 
 #
 # DESCRIPTION:
-#       Verify Allow ACEs are functional for acltype=nfsv4.
+#	Verify Allow ACEs are functional for acltype=nfsv4.
 #
 # STRATEGY:
-#       1. 
+#	1. Create directory with one subdirectory and one file
+#	2. grant everyone execute(x) on directory
+#	3. Remove all ACL entries from test file.
+#	4. Iterate through NFSv4 permissions bits. Grant them
+#	   one at a time and verify the following as limited user:
+#	   a) Permission in question is granted
+#	   b) No additional permissions are granted
+#	5. Repeat step (4) with subdirectory.
+#

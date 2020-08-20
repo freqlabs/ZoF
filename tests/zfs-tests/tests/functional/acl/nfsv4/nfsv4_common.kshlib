@@ -22,6 +22,40 @@
 #
 # Portions Copyright 2020 iXsystems, Inc.
 #
+#       Permissions may be tested as follows:
+#
+#       _FILE_
+#       READ_ATTRIBUTES (a): "stat <file>"
+#       READ_DATA (r): "cat <file>"
+#       READ_XATTR (R): <not implemented>
+#       READ_ACL (c): "getfacl -q <file>"
+#       EXECUTE (x): "/path/to/file"
+#       DELETE (d): "rm <file>"
+#       DELETE_CHILD (D): <does not apply>
+#       WRITE_ATTRIBUTES (A): "touch -a -m -t 201512180130.09 <file>"
+#       WRITE_DATA (w): "echo -n CANARY > <file>"
+#       WRITE_ACL (C): "setfacl -b <file>"
+#       WRITE_OWNER (o): "chown <test user> <file>"
+#       WRITE_XATTR (W): <not implemented>
+#       SYNCHRONIZE (s): <not implemented>
+#
+#       _DIRECTORY_
+#       READ_ATTRIBUTES (a): "stat <dir>"
+#       READ_DATA (r): "ls <dir>"
+#       READ_XATTR (R): <not implemented>
+#       READ_ACL (c): "getfacl -q <dir>"
+#       EXECUTE (x): "cd <dir>"
+#       DELETE (d): "rmdir <dir>"
+#       DELETE_CHILD (D): "rm <dir>/<file>"
+#       WRITE_ATTRIBUTES (A): "touch -a -m -t 201512180130.09 <dir>"
+#       WRITE_DATA (w): "touch <dir>/<testfile>"
+#       WRITE_ACL (C): "setfacl -b <dir>"
+#       WRITE_OWNER (o): "chown <test user> <file>"
+#       WRITE_XATTR (W): <not implemented>
+#       SYNCHRONIZE (s): <not implemented>
+#
+#	When a test calls for "clearing" entries from an ACL, this
+#	may be accomplished by repeating "setfacl -x 0 <file>" until failure.
 
 . $STF_SUITE/include/libtest.shlib
 . $STF_SUITE/tests/functional/acl/acl_common.kshlib
